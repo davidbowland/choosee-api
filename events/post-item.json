@@ -1,0 +1,12 @@
+{
+  "body": "{\"address\":\"Columbia, MO 65203, USA\",\"maxPrice\":4,\"minPrice\":2,\"rankBy\":\"distance\",\"type\":\"restaurant\",\"voterCount\":2}",
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/v1/sessions"
+    }
+  },
+  "headers": {
+    "x-recaptcha-token": "ytrewsdfghjmnbgtyu"
+  }
+}

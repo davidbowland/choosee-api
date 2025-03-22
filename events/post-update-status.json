@@ -1,0 +1,12 @@
+{
+  "body": "{}",
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/v1/sessions/abc123/update-status"
+    }
+  },
+  "pathParameters": {
+    "sessionId": "abc123"
+  }
+}
