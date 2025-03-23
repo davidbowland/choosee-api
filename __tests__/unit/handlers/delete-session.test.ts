@@ -1,15 +1,15 @@
 import * as dynamodb from '@services/dynamodb'
 import { session, sessionId } from '../__mocks__'
 import { APIGatewayProxyEventV2 } from '@types'
-import { deleteByIdHandler } from '@handlers/delete-item'
-import eventJson from '@events/delete-item.json'
+import { deleteByIdHandler } from '@handlers/delete-session'
+import eventJson from '@events/delete-session.json'
 import { mocked } from 'jest-mock'
 import status from '@utils/status'
 
 jest.mock('@services/dynamodb')
 jest.mock('@utils/logging')
 
-describe('delete-item', () => {
+describe('delete-session', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
 
   beforeAll(() => {

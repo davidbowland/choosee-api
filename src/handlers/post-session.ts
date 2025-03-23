@@ -1,3 +1,4 @@
+
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, NewSession, RankByType, Session } from '../types'
 import { extractJwtFromEvent, extractNewSessionFromEvent } from '../utils/events'
 import { log, logError } from '../utils/logging'

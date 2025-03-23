@@ -4,15 +4,15 @@ import * as dynamodb from '@services/dynamodb'
 import * as events from '@utils/events'
 import { APIGatewayProxyEventV2, PatchOperation, Session } from '@types'
 import { decodedJwt, session, sessionId } from '../__mocks__'
-import eventJson from '@events/patch-item.json'
-import { patchItemHandler } from '@handlers/patch-item'
+import eventJson from '@events/patch-session.json'
+import { patchItemHandler } from '@handlers/patch-session'
 import status from '@utils/status'
 
 jest.mock('@services/dynamodb')
 jest.mock('@utils/events')
 jest.mock('@utils/logging')
 
-describe('patch-item', () => {
+describe('patch-session', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
   const expectedResult = { ...session, voterCount: 1 } as Session
 

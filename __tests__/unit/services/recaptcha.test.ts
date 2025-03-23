@@ -4,7 +4,7 @@ import * as events from '@utils/events'
 import { getCaptchaScore, getScoreFromEvent } from '@services/recaptcha'
 import { http, HttpResponse, server } from '@setup-server'
 import { APIGatewayProxyEventV2 } from '@types'
-import eventJson from '@events/post-item.json'
+import eventJson from '@events/post-session.json'
 import { recaptchaToken } from '../__mocks__'
 
 jest.mock('@utils/events')

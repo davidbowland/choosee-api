@@ -7,8 +7,8 @@ import {
   extractTokenFromEvent,
   formatSession,
 } from '@utils/events'
-import patchEventJson from '@events/patch-item.json'
-import postEventJson from '@events/post-item.json'
+import patchEventJson from '@events/patch-session.json'
+import postEventJson from '@events/post-session.json'
 import postSendTextEventJson from '@events/post-send-text.json'
 
 describe('events', () => {

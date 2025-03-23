@@ -6,9 +6,9 @@ import * as idGenerator from '@utils/id-generator'
 import * as maps from '@services/maps'
 import * as recaptcha from '@services/recaptcha'
 import { choice, decodedJwt, newSession, sessionId } from '../__mocks__'
-import { postItemHandlerAuthenticated, postItemHandlerUnauthenticated } from '@handlers/post-item'
+import { postItemHandlerAuthenticated, postItemHandlerUnauthenticated } from '@handlers/post-session'
 import { APIGatewayProxyEventV2 } from '@types'
-import eventJson from '@events/post-item.json'
+import eventJson from '@events/post-session.json'
 import status from '@utils/status'
 
 jest.mock('@services/dynamodb')
@@ -18,7 +18,7 @@ jest.mock('@utils/events')
 jest.mock('@utils/id-generator')
 jest.mock('@utils/logging')
 
-describe('post-item', () => {
+describe('post-session', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
 
   beforeAll(() => {

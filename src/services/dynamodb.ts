@@ -11,7 +11,7 @@ import {
 } from '@aws-sdk/client-dynamodb'
 
 import { Decision, Session, SessionBatch } from '../types'
-import { dynamodbDecisionTableName, dynamodbSessionTableName } from '../config'
+import { dynamodbDecisionsTableName, dynamodbSessionsTableName } from '../config'
 import { xrayCapture } from '../utils/logging'
 
 const dynamodb = xrayCapture(new DynamoDB({ apiVersion: '2012-08-10' }))
@@ -28,7 +28,7 @@ export const deleteDecisionById = async (sessionId: string, userId: string): Pro
         S: `${userId}`,
       },
     },
-    TableName: dynamodbDecisionTableName,
+    TableName: dynamodbDecisionsTableName,
   })
   return dynamodb.send(command)
 }
@@ -40,7 +40,7 @@ export const deleteSessionById = async (sessionId: string): Promise<DeleteItemOu
         S: `${sessionId}`,
       },
     },
-    TableName: dynamodbSessionTableName,
+    TableName: dynamodbSessionsTableName,
   })
   return dynamodb.send(command)
 }
@@ -57,7 +57,7 @@ export const getDecisionById = async (sessionId: string, userId: string): Promis
         S: `${userId}`,
       },
     },
-    TableName: dynamodbDecisionTableName,
+    TableName: dynamodbDecisionsTableName,
   })
   const response = await dynamodb.send(command)
   try {
@@ -74,7 +74,7 @@ export const getSessionById = async (sessionId: string): Promise<Session> => {
         S: `${sessionId}`,
       },
     },
-    TableName: dynamodbSessionTableName,
+    TableName: dynamodbSessionsTableName,
   })
   const response = await dynamodb.send(command)
   return JSON.parse(response.Item.Data.S)
@@ -91,7 +91,7 @@ export const queryUserIdsBySessionId = async (sessionId: string): Promise<string
     },
     KeyConditionExpression: 'SessionId = :v1',
     ProjectionExpression: 'UserId',
-    TableName: dynamodbDecisionTableName,
+    TableName: dynamodbDecisionsTableName,
   })
   const response = await dynamodb.send(command)
   return response.Items.map((item: any) => item.UserId.S)
@@ -111,7 +111,7 @@ export const scanExpiredSessionIds = async (): Promise<string[]> => {
     },
     FilterExpression: 'Expiration BETWEEN :v1 AND :v2',
     IndexName: 'ExpirationIndex',
-    TableName: dynamodbSessionTableName,
+    TableName: dynamodbSessionsTableName,
   })
   const response = await dynamodb.send(command)
   return response.Items.map((item: any) => item.SessionId.S)
@@ -128,7 +128,7 @@ const getItemsFromScan = (response: ScanOutput): SessionBatch[] =>
 export const scanSessions = async (): Promise<SessionBatch[]> => {
   const command = new ScanCommand({
     AttributesToGet: ['Data', 'SessionId', 'Expiration'],
-    TableName: dynamodbSessionTableName,
+    TableName: dynamodbSessionsTableName,
   })
   const response = await dynamodb.send(command)
   return getItemsFromScan(response)
@@ -149,7 +149,7 @@ export const setDecisionById = async (sessionId: string, userId: string, data: D
         S: `${userId}`,
       },
     },
-    TableName: dynamodbDecisionTableName,
+    TableName: dynamodbDecisionsTableName,
   })
   return dynamodb.send(command)
 }
@@ -167,7 +167,7 @@ export const setSessionById = async (sessionId: string, data: Session): Promise<
         S: `${sessionId}`,
       },
     },
-    TableName: dynamodbSessionTableName,
+    TableName: dynamodbSessionsTableName,
   })
   return dynamodb.send(command)
 }

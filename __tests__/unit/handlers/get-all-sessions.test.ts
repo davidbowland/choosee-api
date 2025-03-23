@@ -3,14 +3,14 @@ import { mocked } from 'jest-mock'
 import * as dynamodb from '@services/dynamodb'
 import { session, sessionId } from '../__mocks__'
 import { APIGatewayProxyEventV2 } from '@types'
-import eventJson from '@events/get-all-items.json'
-import { getAllItemsHandler } from '@handlers/get-all-items'
+import eventJson from '@events/get-all-sessions.json'
+import { getAllItemsHandler } from '@handlers/get-all-sessions'
 import status from '@utils/status'
 
 jest.mock('@services/dynamodb')
 jest.mock('@utils/logging')
 
-describe('get-all-items', () => {
+describe('get-all-sessions', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
 
   beforeAll(() => {
