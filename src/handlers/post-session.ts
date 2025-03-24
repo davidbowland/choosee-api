@@ -1,65 +1,92 @@
-
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, NewSession, RankByType, Session } from '../types'
+import {
+  APIGatewayProxyEventV2,
+  APIGatewayProxyResultV2,
+  Choice,
+  GeocodedAddress,
+  NewChoice,
+  NewSession,
+  RankByType,
+  Session,
+} from '../types'
 import { extractJwtFromEvent, extractNewSessionFromEvent } from '../utils/events'
+import { fetchGeocodeResults, fetchPlaceResults } from '../services/google-maps'
+import { getChoiceById, getSessionById, setChoiceById, setSessionById } from '../services/dynamodb'
 import { log, logError } from '../utils/logging'
-import { createChoices } from '../services/maps'
 import { getNextId } from '../utils/id-generator'
 import { getScoreFromEvent } from '../services/recaptcha'
-import { setSessionById } from '../services/dynamodb'
 import status from '../utils/status'
+
+const getGeocodedAddress = async (newChoice: NewChoice): Promise<GeocodedAddress> => {
+  if (newChoice.latitude !== undefined && newChoice.longitude !== undefined) {
+    return { address: newChoice.address, latLng: { latitude: newChoice.latitude, longitude: newChoice.longitude } }
+  }
+  return await fetchGeocodeResults(newChoice.address)
+}
+
+const createChoice = async (newChoice: NewChoice): Promise<APIGatewayProxyResultV2<any>> => {
+  const geocodedAddress = await getGeocodedAddress(newChoice)
+  const places = await fetchPlaceResults(geocodedAddress.latLng, [newChoice.type], newChoice.rankBy, newChoice.radius)
+  log('Google API results', JSON.stringify({ geocodedAddress, places }))
+
+  const choiceId = await getNextId(getChoiceById)
+  const choice: Choice = {
+    address: geocodedAddress.address,
+    choices: places,
+    exclude: newChoice.exclude,
+    expiration: newChoice.expiration as number,
+    latLng: geocodedAddress.latLng,
+    radius: newChoice.radius,
+    rankBy: newChoice.rankBy as RankByType,
+    type: newChoice.type,
+  }
+  log('Creating choices', JSON.stringify({ choice, choiceId }))
+  await setChoiceById(choiceId, choice)
+  return { ...choice, choiceId }
+}
 
 const createNewSession = async (newSession: NewSession, owner?: string): Promise<APIGatewayProxyResultV2<any>> => {
   try {
-    const choice = await createChoices({
+    const choice = await createChoice({
       address: newSession.address,
+      exclude: newSession.exclude,
       expiration: newSession.expiration,
-      maxPrice: newSession.maxPrice,
-      minPrice: newSession.minPrice,
-      openNow: newSession.openNow,
-      pagesPerRound: newSession.pagesPerRound,
+      latitude: newSession.latitude,
+      longitude: newSession.longitude,
       radius: newSession.radius,
       rankBy: newSession.rankBy,
       type: newSession.type,
     })
 
-    try {
-      const sessionId = await getNextId()
-      const session: Session = {
-        address: choice.address,
-        choiceId: choice.choiceId as string,
-        expiration: newSession.expiration as number,
-        location: choice.latLng,
-        maxPrice: choice.maxPrice,
-        minPrice: choice.minPrice,
-        openNow: choice.openNow,
-        owner,
-        pagesPerRound: choice.pagesPerRound,
-        radius: choice.radius,
-        rankBy: choice.rankBy as RankByType,
-        status: {
-          current: choice.choices.length > 0 ? 'deciding' : 'finished',
-          pageId: 0,
-        },
-        type: choice.type,
-        voterCount: newSession.voterCount,
-      }
-      log('Creating session', { session, sessionId })
-      await setSessionById(sessionId, session)
-
-      return {
-        ...status.CREATED,
-        body: JSON.stringify({ ...session, sessionId }),
-      }
-    } catch (error) {
-      logError(error)
-      return status.INTERNAL_SERVER_ERROR
+    const sessionId = await getNextId(getSessionById)
+    const session: Session = {
+      address: choice.address,
+      choiceId: choice.choiceId as string,
+      exclude: choice.exclude,
+      expiration: newSession.expiration as number,
+      location: choice.latLng,
+      owner,
+      radius: choice.radius,
+      rankBy: choice.rankBy as RankByType,
+      status: {
+        current: choice.choices.length > 0 ? 'deciding' : 'finished',
+      },
+      type: choice.type,
+      voterCount: newSession.voterCount,
     }
-  } catch (error: any) {
-    return { body: JSON.stringify(error.response.data), statusCode: error.response.status }
+    log('Creating session', { session, sessionId })
+    await setSessionById(sessionId, session)
+
+    return {
+      ...status.CREATED,
+      body: JSON.stringify({ ...session, sessionId }),
+    }
+  } catch (error) {
+    logError(error)
+    return status.INTERNAL_SERVER_ERROR
   }
 }
 
-export const postItemHandler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2<any>> => {
+export const postSessionHandler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2<any>> => {
   try {
     const newSession = extractNewSessionFromEvent(event)
     const jwtPayload = extractJwtFromEvent(event)
@@ -69,14 +96,14 @@ export const postItemHandler = async (event: APIGatewayProxyEventV2): Promise<AP
   }
 }
 
-export const postItemHandlerAuthenticated = async (
+export const postSessionHandlerAuthenticated = async (
   event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayProxyResultV2<any>> => {
   log('Received event', { ...event, body: undefined })
-  return await postItemHandler(event)
+  return await postSessionHandler(event)
 }
 
-export const postItemHandlerUnauthenticated = async (
+export const postSessionHandlerUnauthenticated = async (
   event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayProxyResultV2<any>> => {
   log('Received event', { ...event, body: undefined })
@@ -90,5 +117,5 @@ export const postItemHandlerUnauthenticated = async (
     return status.INTERNAL_SERVER_ERROR
   }
 
-  return await postItemHandler(event)
+  return await postSessionHandler(event)
 }

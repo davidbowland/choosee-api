@@ -47,7 +47,7 @@ describe('twitch', () => {
     })
 
     test('expect 1.0 score when internal request', async () => {
-      const internalEvent = { ...event, requestContext: { domainPrefix: 'choosee-maps-api-internal' } }
+      const internalEvent = { ...event, requestContext: { domainPrefix: 'choosee-api-internal' } }
       const score = await getScoreFromEvent(internalEvent as unknown as APIGatewayProxyEventV2)
       expect(score).toEqual(1.0)
     })

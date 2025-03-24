@@ -22,7 +22,7 @@ export const getCaptchaScore = async (token: string): Promise<number> =>
     .then((response) => response.data.score)
 
 export const getScoreFromEvent = async (event: APIGatewayProxyEventV2): Promise<number> => {
-  if (event.requestContext?.domainPrefix === 'choosee-maps-api-internal') {
+  if (event.requestContext?.domainPrefix === 'choosee-api-internal') {
     return 1
   } else {
     return await getCaptchaScore(extractTokenFromEvent(event))

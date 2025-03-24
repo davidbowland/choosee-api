@@ -1,6 +1,7 @@
 import { mocked } from 'jest-mock'
 
 import * as dynamodb from '@services/dynamodb'
+import * as events from '@utils/events'
 import { decision, session } from '../__mocks__'
 import { APIGatewayProxyEventV2 } from '@types'
 import eventJson from '@events/get-decisions-by-id.json'
@@ -8,6 +9,7 @@ import { getDecisionsByIdHandler } from '@handlers/get-decisions-by-id'
 import status from '@utils/status'
 
 jest.mock('@services/dynamodb')
+jest.mock('@utils/events')
 jest.mock('@utils/logging')
 
 describe('get-decisions-by-id', () => {
@@ -16,12 +18,13 @@ describe('get-decisions-by-id', () => {
   beforeAll(() => {
     mocked(dynamodb).getDecisionById.mockResolvedValue(decision)
     mocked(dynamodb).getSessionById.mockResolvedValue(session)
+    mocked(events).extractJwtFromEvent.mockReturnValue(undefined)
   })
 
   describe('getDecisionsByIdHandler', () => {
     test("expect FORBIDDEN when userId doesn't match JWT", async () => {
-      const tempEvent = { ...event, pathParameters: { ...event.pathParameters, userId: 'doesnt_match' } }
-      const result = await getDecisionsByIdHandler(tempEvent)
+      mocked(events).extractJwtFromEvent.mockReturnValueOnce({ phone_number: 'doesnt_match' })
+      const result = await getDecisionsByIdHandler(event)
       expect(result).toEqual(expect.objectContaining(status.FORBIDDEN))
     })
 

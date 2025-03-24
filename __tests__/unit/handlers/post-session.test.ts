@@ -2,17 +2,17 @@ import { mocked } from 'jest-mock'
 
 import * as dynamodb from '@services/dynamodb'
 import * as events from '@utils/events'
+import * as googleMaps from '@services/google-maps'
 import * as idGenerator from '@utils/id-generator'
-import * as maps from '@services/maps'
 import * as recaptcha from '@services/recaptcha'
-import { choice, decodedJwt, newSession, sessionId } from '../__mocks__'
-import { postItemHandlerAuthenticated, postItemHandlerUnauthenticated } from '@handlers/post-session'
+import { decodedJwt, geocodedAddress, newSession, place1, sessionId } from '../__mocks__'
+import { postSessionHandlerAuthenticated, postSessionHandlerUnauthenticated } from '@handlers/post-session'
 import { APIGatewayProxyEventV2 } from '@types'
 import eventJson from '@events/post-session.json'
 import status from '@utils/status'
 
 jest.mock('@services/dynamodb')
-jest.mock('@services/maps')
+jest.mock('@services/google-maps')
 jest.mock('@services/recaptcha')
 jest.mock('@utils/events')
 jest.mock('@utils/id-generator')
@@ -22,53 +22,59 @@ describe('post-session', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
 
   beforeAll(() => {
-    mocked(maps).createChoices.mockResolvedValue(choice)
     mocked(events).extractJwtFromEvent.mockReturnValue(null)
     mocked(events).extractNewSessionFromEvent.mockReturnValue(newSession)
+    mocked(googleMaps).fetchGeocodeResults.mockResolvedValue(geocodedAddress)
+    mocked(googleMaps).fetchPlaceResults.mockResolvedValue([place1])
     mocked(idGenerator).getNextId.mockResolvedValue(sessionId)
     mocked(recaptcha).getScoreFromEvent.mockResolvedValue(1)
   })
 
-  describe('postItemHandlerAuthenticated', () => {
+  describe('postSessionHandlerAuthenticated', () => {
     test('expect BAD_REQUEST when new session is invalid', async () => {
       mocked(events).extractNewSessionFromEvent.mockImplementationOnce(() => {
         throw new Error('Bad request')
       })
-      const result = await postItemHandlerAuthenticated(event)
+      const result = await postSessionHandlerAuthenticated(event)
       expect(result).toEqual(expect.objectContaining(status.BAD_REQUEST))
     })
 
-    test('expect BAD_REQUEST when createChoices rejects from geocode', async () => {
-      mocked(maps).createChoices.mockRejectedValueOnce({
+    test('expect INTERNAL_SERVER_ERROR when fetchPlaceResults rejects from geocode', async () => {
+      mocked(googleMaps).fetchPlaceResults.mockRejectedValueOnce({
         response: { data: { message: 'Invalid address' }, status: status.BAD_REQUEST.statusCode },
       })
-      const result = await postItemHandlerAuthenticated(event)
-      expect(result).toEqual(
-        expect.objectContaining({ ...status.BAD_REQUEST, body: JSON.stringify({ message: 'Invalid address' }) }),
-      )
+      const result = await postSessionHandlerAuthenticated(event)
+      expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
     })
 
     test('expect sessionId passed to setSessionById', async () => {
-      await postItemHandlerAuthenticated(event)
+      await postSessionHandlerAuthenticated(event)
       expect(mocked(dynamodb).setSessionById).toHaveBeenCalledWith('abc123', expect.objectContaining(newSession))
     })
 
     test('expect INTERNAL_SERVER_ERROR on setSessionById reject', async () => {
       mocked(dynamodb).setSessionById.mockRejectedValueOnce(undefined)
-      const result = await postItemHandlerAuthenticated(event)
+      const result = await postSessionHandlerAuthenticated(event)
       expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
     })
 
+    test('expect fetchGeocodeResults not called when latitude and longitude are passed', async () => {
+      const sessionWithLatLong = { ...newSession, latitude: 39.0013395, longitude: -92.3128326 }
+      mocked(events).extractNewSessionFromEvent.mockReturnValueOnce(sessionWithLatLong)
+      await postSessionHandlerAuthenticated(event)
+      expect(mocked(googleMaps).fetchGeocodeResults).not.toHaveBeenCalled()
+    })
+
     test('expect CREATED and body', async () => {
-      const result = await postItemHandlerAuthenticated(event)
+      const result = await postSessionHandlerAuthenticated(event)
       expect(result).toEqual(expect.objectContaining(status.CREATED))
-      expect(mocked(maps).createChoices).toHaveBeenCalledWith({
-        address: 'Columbia, MO 65203, USA',
-        maxPrice: 4,
-        minPrice: 2,
-        rankBy: 'distance',
-        type: 'restaurant',
-      })
+      expect(mocked(googleMaps).fetchPlaceResults).toHaveBeenCalledWith(
+        { latitude: 39.0013395, longitude: -92.3128326 },
+        ['restaurant'],
+        'POPULARITY',
+        3_757,
+      )
+      expect(mocked(googleMaps).fetchGeocodeResults).toHaveBeenCalledWith('Columbia, MO 65203, USA')
       expect(JSON.parse(result.body)).toEqual(
         expect.objectContaining({
           ...newSession,
@@ -79,7 +85,7 @@ describe('post-session', () => {
 
     test('expect owner when JWT', async () => {
       mocked(events).extractJwtFromEvent.mockReturnValueOnce(decodedJwt)
-      const result = await postItemHandlerAuthenticated(event)
+      const result = await postSessionHandlerAuthenticated(event)
       expect(result).toEqual(expect.objectContaining(status.CREATED))
       expect(JSON.parse(result.body)).toEqual(
         expect.objectContaining({
@@ -91,43 +97,41 @@ describe('post-session', () => {
     })
 
     test('expect finished status when no data', async () => {
-      mocked(maps).createChoices.mockResolvedValue({ ...choice, choices: [] })
-      const result = await postItemHandlerAuthenticated(event)
+      mocked(googleMaps).fetchPlaceResults.mockResolvedValueOnce([])
+      const result = await postSessionHandlerAuthenticated(event)
       expect(result).toEqual(expect.objectContaining(status.CREATED))
       expect(JSON.parse(result.body)).toEqual(
         expect.objectContaining({
           status: {
             current: 'finished',
-            pageId: 0,
           },
         }),
       )
     })
   })
 
-  describe('postItemHandlerUnauthenticated', () => {
+  describe('postSessionHandlerUnauthenticated', () => {
     test('expect FORBIDDEN when getScoreFromEvent is under threshold', async () => {
       mocked(recaptcha).getScoreFromEvent.mockResolvedValueOnce(0)
-      const result = await postItemHandlerUnauthenticated(event)
+      const result = await postSessionHandlerUnauthenticated(event)
       expect(result).toEqual(status.FORBIDDEN)
     })
 
     test('expect INTERNAL_SERVER_ERROR when getScoreFromEvent rejects', async () => {
       mocked(recaptcha).getScoreFromEvent.mockRejectedValueOnce(undefined)
-      const result = await postItemHandlerUnauthenticated(event)
+      const result = await postSessionHandlerUnauthenticated(event)
       expect(result).toEqual(status.INTERNAL_SERVER_ERROR)
     })
 
     test('expect CREATED and body', async () => {
-      const result = await postItemHandlerUnauthenticated(event)
+      const result = await postSessionHandlerUnauthenticated(event)
       expect(result).toEqual(expect.objectContaining(status.CREATED))
-      expect(mocked(maps).createChoices).toHaveBeenCalledWith({
-        address: 'Columbia, MO 65203, USA',
-        maxPrice: 4,
-        minPrice: 2,
-        rankBy: 'distance',
-        type: 'restaurant',
-      })
+      expect(mocked(googleMaps).fetchPlaceResults).toHaveBeenCalledWith(
+        { latitude: 39.0013395, longitude: -92.3128326 },
+        ['restaurant'],
+        'POPULARITY',
+        3_757,
+      )
       expect(JSON.parse(result.body)).toEqual(
         expect.objectContaining({
           ...newSession,

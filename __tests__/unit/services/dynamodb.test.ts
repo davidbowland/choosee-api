@@ -1,12 +1,10 @@
-import { decision, session, sessionId, userId } from '../__mocks__'
+import { choice, choiceId, decision, session, sessionId, userId } from '../__mocks__'
 import {
-  deleteDecisionById,
-  deleteSessionById,
+  getChoiceById,
   getDecisionById,
   getSessionById,
   queryUserIdsBySessionId,
-  scanExpiredSessionIds,
-  scanSessions,
+  setChoiceById,
   setDecisionById,
   setSessionById,
 } from '@services/dynamodb'
@@ -27,48 +25,82 @@ jest.mock('@utils/logging', () => ({
 }))
 
 describe('dynamodb', () => {
-  const epochTime = 1678432576539
+  const epochTime = 1_678_432_576_539
 
   beforeAll(() => {
     jest.spyOn(Date.prototype, 'getTime').mockReturnValue(epochTime)
   })
 
-  describe('deleteDecisionById', () => {
+  /* Choices */
+
+  describe('getChoiceById', () => {
     test('should call DynamoDB with the correct arguments', async () => {
-      await deleteDecisionById(sessionId, userId)
+      mockSend.mockResolvedValueOnce({
+        Item: { Data: { S: JSON.stringify(choice) } },
+      })
+
+      const result = await getChoiceById(choiceId)
 
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
           Key: {
-            SessionId: {
-              S: sessionId,
-            },
-            UserId: {
-              S: userId,
+            ChoiceId: {
+              S: choiceId,
             },
           },
-          TableName: 'decision-table',
+          TableName: 'choices-table',
+        }),
+      )
+      expect(result).toEqual(choice)
+    })
+  })
+
+  describe('setChoiceById', () => {
+    test('should call DynamoDB with the correct arguments', async () => {
+      await setChoiceById(choiceId, choice)
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Item: {
+            ChoiceId: {
+              S: choiceId,
+            },
+            Data: {
+              S: JSON.stringify(choice),
+            },
+            Expiration: {
+              N: '1728547851',
+            },
+          },
+          TableName: 'choices-table',
+        }),
+      )
+    })
+
+    test('should call DynamoDB with the correct arguments when no expiration', async () => {
+      const choiceNoExpiration = { ...choice, expiration: undefined }
+      await setChoiceById(choiceId, choiceNoExpiration)
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Item: {
+            ChoiceId: {
+              S: choiceId,
+            },
+            Data: {
+              S: JSON.stringify(choiceNoExpiration),
+            },
+            Expiration: {
+              N: '0',
+            },
+          },
+          TableName: 'choices-table',
         }),
       )
     })
   })
 
-  describe('deleteSessionById', () => {
-    test('should call DynamoDB with the correct arguments', async () => {
-      await deleteSessionById(sessionId)
-
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Key: {
-            SessionId: {
-              S: sessionId,
-            },
-          },
-          TableName: 'session-table',
-        }),
-      )
-    })
-  })
+  /* Decisions */
 
   describe('getDecisionById', () => {
     test('should call DynamoDB with the correct arguments', async () => {
@@ -104,6 +136,31 @@ describe('dynamodb', () => {
       expect(result).toEqual({ decisions: [] })
     })
   })
+
+  describe('setDecisionById', () => {
+    test('should call DynamoDB with the correct arguments', async () => {
+      await setDecisionById(sessionId, userId, decision)
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Item: {
+            Data: {
+              S: JSON.stringify(decision),
+            },
+            SessionId: {
+              S: sessionId,
+            },
+            UserId: {
+              S: userId,
+            },
+          },
+          TableName: 'decision-table',
+        }),
+      )
+    })
+  })
+
+  /* Sessions */
 
   describe('getSessionById', () => {
     test('should call DynamoDB with the correct arguments', async () => {
@@ -148,74 +205,6 @@ describe('dynamodb', () => {
         }),
       )
       expect(result).toEqual([userId])
-    })
-  })
-
-  describe('scanExpiredSessionIds', () => {
-    test('should call DynamoDB with the correct arguments', async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [{ SessionId: { S: sessionId } }],
-      })
-
-      const result = await scanExpiredSessionIds()
-
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ExpressionAttributeValues: {
-            ':v1': {
-              N: '1',
-            },
-            ':v2': {
-              N: `${epochTime}`,
-            },
-          },
-          FilterExpression: 'Expiration BETWEEN :v1 AND :v2',
-          IndexName: 'ExpirationIndex',
-          TableName: 'session-table',
-        }),
-      )
-      expect(result).toEqual([sessionId])
-    })
-  })
-
-  describe('scanSessions', () => {
-    test('should call DynamoDB with the correct arguments', async () => {
-      mockSend.mockResolvedValueOnce({
-        Items: [{ Data: { S: JSON.stringify(session) }, SessionId: { S: sessionId } }],
-      })
-
-      const result = await scanSessions()
-
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          AttributesToGet: ['Data', 'SessionId', 'Expiration'],
-          TableName: 'session-table',
-        }),
-      )
-      expect(result).toEqual([{ data: session, id: sessionId }])
-    })
-  })
-
-  describe('setDecisionById', () => {
-    test('should call DynamoDB with the correct arguments', async () => {
-      await setDecisionById(sessionId, userId, decision)
-
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Item: {
-            Data: {
-              S: JSON.stringify(decision),
-            },
-            SessionId: {
-              S: sessionId,
-            },
-            UserId: {
-              S: userId,
-            },
-          },
-          TableName: 'decision-table',
-        }),
-      )
     })
   })
 

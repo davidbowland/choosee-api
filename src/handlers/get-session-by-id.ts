@@ -12,7 +12,9 @@ const fetchById = async (sessionId: string): Promise<APIGatewayProxyResultV2<Ses
   }
 }
 
-export const getByIdHandler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2<Session>> => {
+export const getSessionByIdHandler = async (
+  event: APIGatewayProxyEventV2,
+): Promise<APIGatewayProxyResultV2<Session>> => {
   log('Received event', { ...event, body: undefined })
   const sessionId = event.pathParameters?.sessionId as string
   const result = await fetchById(sessionId)

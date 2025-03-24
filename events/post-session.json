@@ -1,5 +1,5 @@
 {
-  "body": "{\"address\":\"Columbia, MO 65203, USA\",\"maxPrice\":4,\"minPrice\":2,\"rankBy\":\"distance\",\"type\":\"restaurant\",\"voterCount\":2}",
+  "body": "{\"address\":\"Columbia, MO 65203, USA\",\"exclude\":[\"breakfast_restaurant\"],\"radius\":3757,\"rankBy\":\"POPULARITY\",\"type\":\"restaurant\",\"voterCount\":2}",
   "requestContext": {
     "http": {
       "method": "POST",

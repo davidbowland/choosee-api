@@ -1,51 +1,45 @@
-import {
-  DeleteItemCommand,
-  DeleteItemOutput,
-  DynamoDB,
-  GetItemCommand,
-  PutItemCommand,
-  PutItemOutput,
-  QueryCommand,
-  ScanCommand,
-  ScanOutput,
-} from '@aws-sdk/client-dynamodb'
+import { DynamoDB, GetItemCommand, PutItemCommand, PutItemOutput, QueryCommand } from '@aws-sdk/client-dynamodb'
 
-import { Decision, Session, SessionBatch } from '../types'
-import { dynamodbDecisionsTableName, dynamodbSessionsTableName } from '../config'
+import { Choice, Decision, Session } from '../types'
+import { dynamodbChoicesTable, dynamodbDecisionsTableName, dynamodbSessionsTableName } from '../config'
 import { xrayCapture } from '../utils/logging'
 
 const dynamodb = xrayCapture(new DynamoDB({ apiVersion: '2012-08-10' }))
 
-/* Delete item */
+/* Choices */
 
-export const deleteDecisionById = async (sessionId: string, userId: string): Promise<DeleteItemOutput> => {
-  const command = new DeleteItemCommand({
+export const getChoiceById = async (choiceId: string): Promise<Choice> => {
+  const command = new GetItemCommand({
     Key: {
-      SessionId: {
-        S: `${sessionId}`,
-      },
-      UserId: {
-        S: `${userId}`,
+      ChoiceId: {
+        S: `${choiceId}`,
       },
     },
-    TableName: dynamodbDecisionsTableName,
+    TableName: dynamodbChoicesTable,
+  })
+  const response = await dynamodb.send(command)
+  return JSON.parse(response.Item.Data.S)
+}
+
+export const setChoiceById = async (choiceId: string, choice: Choice): Promise<PutItemOutput> => {
+  const command = new PutItemCommand({
+    Item: {
+      ChoiceId: {
+        S: `${choiceId}`,
+      },
+      Data: {
+        S: JSON.stringify(choice),
+      },
+      Expiration: {
+        N: `${choice.expiration ?? 0}`,
+      },
+    },
+    TableName: dynamodbChoicesTable,
   })
   return dynamodb.send(command)
 }
 
-export const deleteSessionById = async (sessionId: string): Promise<DeleteItemOutput> => {
-  const command = new DeleteItemCommand({
-    Key: {
-      SessionId: {
-        S: `${sessionId}`,
-      },
-    },
-    TableName: dynamodbSessionsTableName,
-  })
-  return dynamodb.send(command)
-}
-
-/* Get single item */
+/* Decisions */
 
 export const getDecisionById = async (sessionId: string, userId: string): Promise<Decision> => {
   const command = new GetItemCommand({
@@ -67,75 +61,6 @@ export const getDecisionById = async (sessionId: string, userId: string): Promis
   }
 }
 
-export const getSessionById = async (sessionId: string): Promise<Session> => {
-  const command = new GetItemCommand({
-    Key: {
-      SessionId: {
-        S: `${sessionId}`,
-      },
-    },
-    TableName: dynamodbSessionsTableName,
-  })
-  const response = await dynamodb.send(command)
-  return JSON.parse(response.Item.Data.S)
-}
-
-/* Query for user IDs by session */
-
-export const queryUserIdsBySessionId = async (sessionId: string): Promise<string[]> => {
-  const command = new QueryCommand({
-    ExpressionAttributeValues: {
-      ':v1': {
-        S: sessionId,
-      },
-    },
-    KeyConditionExpression: 'SessionId = :v1',
-    ProjectionExpression: 'UserId',
-    TableName: dynamodbDecisionsTableName,
-  })
-  const response = await dynamodb.send(command)
-  return response.Items.map((item: any) => item.UserId.S)
-}
-
-/* Scan for expired items */
-
-export const scanExpiredSessionIds = async (): Promise<string[]> => {
-  const command = new ScanCommand({
-    ExpressionAttributeValues: {
-      ':v1': {
-        N: '1',
-      },
-      ':v2': {
-        N: `${new Date().getTime()}`,
-      },
-    },
-    FilterExpression: 'Expiration BETWEEN :v1 AND :v2',
-    IndexName: 'ExpirationIndex',
-    TableName: dynamodbSessionsTableName,
-  })
-  const response = await dynamodb.send(command)
-  return response.Items.map((item: any) => item.SessionId.S)
-}
-
-/* Scan for all items */
-
-const getItemsFromScan = (response: ScanOutput): SessionBatch[] =>
-  response.Items?.map((item) => ({
-    data: JSON.parse(item.Data.S as string),
-    id: item.SessionId.S as string,
-  })) as SessionBatch[]
-
-export const scanSessions = async (): Promise<SessionBatch[]> => {
-  const command = new ScanCommand({
-    AttributesToGet: ['Data', 'SessionId', 'Expiration'],
-    TableName: dynamodbSessionsTableName,
-  })
-  const response = await dynamodb.send(command)
-  return getItemsFromScan(response)
-}
-
-/* Set item */
-
 export const setDecisionById = async (sessionId: string, userId: string, data: Decision): Promise<PutItemOutput> => {
   const command = new PutItemCommand({
     Item: {
@@ -152,6 +77,36 @@ export const setDecisionById = async (sessionId: string, userId: string, data: D
     TableName: dynamodbDecisionsTableName,
   })
   return dynamodb.send(command)
+}
+
+/* Sessions */
+
+export const getSessionById = async (sessionId: string): Promise<Session> => {
+  const command = new GetItemCommand({
+    Key: {
+      SessionId: {
+        S: `${sessionId}`,
+      },
+    },
+    TableName: dynamodbSessionsTableName,
+  })
+  const response = await dynamodb.send(command)
+  return JSON.parse(response.Item.Data.S)
+}
+
+export const queryUserIdsBySessionId = async (sessionId: string): Promise<string[]> => {
+  const command = new QueryCommand({
+    ExpressionAttributeValues: {
+      ':v1': {
+        S: sessionId,
+      },
+    },
+    KeyConditionExpression: 'SessionId = :v1',
+    ProjectionExpression: 'UserId',
+    TableName: dynamodbDecisionsTableName,
+  })
+  const response = await dynamodb.send(command)
+  return response.Items.map((item: any) => item.UserId.S)
 }
 
 export const setSessionById = async (sessionId: string, data: Session): Promise<PutItemOutput> => {

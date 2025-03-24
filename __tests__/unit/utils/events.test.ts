@@ -3,15 +3,21 @@ import { decodedJwt, jsonPatchOperations, newSession } from '../__mocks__'
 import {
   extractJsonPatchFromEvent,
   extractJwtFromEvent,
+  extractLatLngFromEvent,
   extractNewSessionFromEvent,
   extractTokenFromEvent,
   formatSession,
 } from '@utils/events'
 import patchEventJson from '@events/patch-session.json'
 import postEventJson from '@events/post-session.json'
-import postSendTextEventJson from '@events/post-send-text.json'
+import postSendTextToEventJson from '@events/post-send-text-to.json'
+import reverseEventJson from '@events/get-reverse-geocode.json'
 
 describe('events', () => {
+  beforeAll(() => {
+    jest.spyOn(Date.prototype, 'getTime').mockReturnValue(1_742_760_571_384)
+  })
+
   describe('formatSession', () => {
     test('expect error on missing address', () => {
       const invalidSession = { ...newSession, address: undefined }
@@ -23,50 +29,96 @@ describe('events', () => {
       expect(() => formatSession(tooLateExpirationSession)).toThrow()
     })
 
-    test.each([-1, 5])('expect error on invalid maxPrice (%s)', (maxPrice) => {
-      const invalidSession = { ...newSession, maxPrice } as NewSession
-      expect(() => formatSession(invalidSession)).toThrow()
+    test('expect error when latitude provided by longitude not', () => {
+      const noLongitudeSession = { ...newSession, latitude: 47, longitude: undefined }
+      expect(() => formatSession(noLongitudeSession)).toThrow()
     })
 
-    test.each([-1, 5])('expect error on invalid minPrice (%s)', (minPrice) => {
-      const invalidSession = { ...newSession, minPrice } as NewSession
-      expect(() => formatSession(invalidSession)).toThrow()
-    })
-
-    test('expect error when maxPrice less than minPrice', () => {
-      const invalidSession = { ...newSession, maxPrice: 0, minPrice: 4 } as NewSession
-      expect(() => formatSession(invalidSession)).toThrow()
-    })
-
-    test.each([0, 4])('expect error on invalid pagesPerRound (%s)', (pagesPerRound) => {
-      const invalidSession = { ...newSession, pagesPerRound } as NewSession
-      expect(() => formatSession(invalidSession)).toThrow()
+    test('expect error when longitude provided by latitude not', () => {
+      const noLatitudeSession = { ...newSession, latitude: undefined, longitude: 84 }
+      expect(() => formatSession(noLatitudeSession)).toThrow()
     })
 
     test.each([undefined, 'fnord'])('expect error on invalid rankBy (%s)', (rankBy) => {
-      const invalidSession = { ...newSession, rankBy } as NewSession
-      expect(() => formatSession(invalidSession)).toThrow()
+      const invalidRankBySession = { ...newSession, rankBy } as NewSession
+      expect(() => formatSession(invalidRankBySession)).toThrow()
     })
 
     test.each([undefined, 0, 50_001])('expect error when ranked by prominence and bad radius', (radius) => {
-      const invalidSession = { ...newSession, radius, rankBy: 'prominence' } as NewSession
-      expect(() => formatSession(invalidSession)).toThrow()
+      const invalidRadiusSession = { ...newSession, radius, rankBy: 'POPULARITY' } as NewSession
+      expect(() => formatSession(invalidRadiusSession)).toThrow()
     })
 
     test.each([undefined, 'fnord'])('expect error on invalid type (%s)', (type) => {
-      const invalidSession = { ...newSession, type } as NewSession
-      expect(() => formatSession(invalidSession)).toThrow()
+      const invalidTypeSession = { ...newSession, type } as NewSession
+      expect(() => formatSession(invalidTypeSession)).toThrow()
     })
 
     test.each([undefined, 0, 11])('expect error on invalid voterCount (%s)', (voterCount) => {
-      const invalidSession = { ...newSession, voterCount } as NewSession
-      expect(() => formatSession(invalidSession)).toThrow()
+      const invalidVoterCountSession = { ...newSession, voterCount } as NewSession
+      expect(() => formatSession(invalidVoterCountSession)).toThrow()
     })
 
     test('expect formatted session returned', () => {
       const result = formatSession(newSession)
       expect(result).toEqual(expect.objectContaining(newSession))
       expect(result.expiration).toBeGreaterThan(new Date().getTime())
+    })
+  })
+
+  describe('extractJsonPatchFromEvent', () => {
+    test('expect preference from event', async () => {
+      const result = await extractJsonPatchFromEvent(patchEventJson as unknown as APIGatewayProxyEventV2)
+      expect(result).toEqual(jsonPatchOperations)
+    })
+  })
+
+  describe('extractJwtFromEvent', () => {
+    test('expect payload successfully extracted', () => {
+      const result = extractJwtFromEvent(postSendTextToEventJson as unknown as APIGatewayProxyEventV2)
+      expect(result).toEqual(decodedJwt)
+    })
+
+    test('expect null on invalid JWT', () => {
+      const result = extractJwtFromEvent({
+        ...postSendTextToEventJson,
+        headers: {
+          authorization: 'Bearer invalid jwt',
+        },
+      } as unknown as APIGatewayProxyEventV2)
+      expect(result).toBe(null)
+    })
+
+    test('expect null on missing header', () => {
+      const event = { ...postSendTextToEventJson, headers: {} } as unknown as APIGatewayProxyEventV2
+      const result = extractJwtFromEvent(event)
+      expect(result).toBe(null)
+    })
+  })
+
+  describe('extractLatLngFromEvent', () => {
+    const event = reverseEventJson as unknown as APIGatewayProxyEventV2
+    const expectedResult = { latitude: 38.897957, longitude: -77.03656 }
+
+    test('expect LatLng extracted from event', async () => {
+      const result = extractLatLngFromEvent(event)
+      expect(result).toEqual(expectedResult)
+    })
+
+    test.each([undefined, -91, 91])('expect exception when latitude is invalid (%s)', async (latitude) => {
+      const invalidLatEvent = {
+        ...event,
+        queryStringParameters: { ...event.queryStringParameters, latitude },
+      } as unknown as APIGatewayProxyEventV2
+      expect(() => extractLatLngFromEvent(invalidLatEvent)).toThrow()
+    })
+
+    test.each([undefined, -181, 181])('expect exception when longitude is invalid (%s)', async (longitude) => {
+      const invalidLngEvent = {
+        ...event,
+        queryStringParameters: { ...event.queryStringParameters, longitude },
+      } as unknown as APIGatewayProxyEventV2
+      expect(() => extractLatLngFromEvent(invalidLngEvent)).toThrow()
     })
   })
 
@@ -91,46 +143,6 @@ describe('events', () => {
     test('expect reject on invalid event', async () => {
       const tempEvent = { ...event, body: JSON.stringify({}) } as unknown as APIGatewayProxyEventV2
       expect(() => extractNewSessionFromEvent(tempEvent)).toThrow()
-    })
-
-    test('expect session to be formatted', async () => {
-      const tempEmail = {
-        ...newSession,
-        foo: 'bar',
-      }
-      const tempEvent = { ...event, body: JSON.stringify(tempEmail) } as unknown as APIGatewayProxyEventV2
-      const result = await extractNewSessionFromEvent(tempEvent)
-      expect(result).toEqual(expect.objectContaining(newSession))
-    })
-  })
-
-  describe('extractJsonPatchFromEvent', () => {
-    test('expect preference from event', async () => {
-      const result = await extractJsonPatchFromEvent(patchEventJson as unknown as APIGatewayProxyEventV2)
-      expect(result).toEqual(jsonPatchOperations)
-    })
-  })
-
-  describe('extractJwtFromEvent', () => {
-    test('expect payload successfully extracted', () => {
-      const result = extractJwtFromEvent(postSendTextEventJson as unknown as APIGatewayProxyEventV2)
-      expect(result).toEqual(decodedJwt)
-    })
-
-    test('expect null on invalid JWT', () => {
-      const result = extractJwtFromEvent({
-        ...postSendTextEventJson,
-        headers: {
-          authorization: 'Bearer invalid jwt',
-        },
-      } as unknown as APIGatewayProxyEventV2)
-      expect(result).toBe(null)
-    })
-
-    test('expect null on missing header', () => {
-      const event = { ...postSendTextEventJson, headers: {} } as unknown as APIGatewayProxyEventV2
-      const result = extractJwtFromEvent(event)
-      expect(result).toBe(null)
     })
   })
 

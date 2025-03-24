@@ -133,152 +133,30 @@ Resources:
 
   # Lambda
 
-  DeleteSessionFunction:
+  ## Choices
+
+  GetChoiceByIdFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/delete-session.deleteByIdHandler
+      Handler: src/handlers/get-choice-by-id.GetChoiceByIdHandler
       Runtime: nodejs22.x
       Architectures:
         - x86_64
-      MemorySize: 1536
-      Description: choosee-api delete by ID
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
-            TableName: !Ref SessionsTable
-      Environment:
-        Variables:
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-      Events:
-        ApiKey:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /sessions/{sessionId}
-            Method: delete
-            Auth:
-              ApiKeyRequired: true
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 10
-      Tracing: Active
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: 'es2020'
-        Sourcemap: true
-        EntryPoints:
-          - src/handlers/delete-session.ts
-
-  DeleteSessionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${DeleteSessionFunction}
-      RetentionInDays: 30
-      Tags:
-        - Key: 'created-by'
-          Value: 'choosee-api'
-        - Key: 'created-for'
-          Value: 'choosee'
-        - Key: 'environment'
-          Value: !Ref Environment
-
-  DeleteSessionLogGroupSubscription:
-    Type: AWS::Logs::SubscriptionFilter
-    Properties:
-      DestinationArn: !Sub
-        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
-        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
-      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref DeleteSessionLogGroup
-
-  GetAllSessionsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/get-all-sessions.getAllItemsHandler
-      Runtime: nodejs22.x
-      Architectures:
-        - x86_64
-      MemorySize: 1536
-      Description: choosee-api get all items
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - DynamoDBReadPolicy:
-            TableName: !Ref SessionsTable
-      Environment:
-        Variables:
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-      Events:
-        ApiKey:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /sessions
-            Method: get
-            Auth:
-              ApiKeyRequired: true
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 30
-      Tracing: Active
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: 'es2020'
-        Sourcemap: true
-        EntryPoints:
-          - src/handlers/get-all-sessions.ts
-
-  GetAllSessionsLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${GetAllSessionsFunction}
-      RetentionInDays: 30
-      Tags:
-        - Key: 'created-by'
-          Value: 'choosee-api'
-        - Key: 'created-for'
-          Value: 'choosee'
-        - Key: 'environment'
-          Value: !Ref Environment
-
-  GetAllSessionsLogGroupSubscription:
-    Type: AWS::Logs::SubscriptionFilter
-    Properties:
-      DestinationArn: !Sub
-        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
-        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
-      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref GetAllSessionsLogGroup
-
-  GetSessionByIdFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/get-session-by-id.getByIdHandler
-      Runtime: nodejs22.x
-      Architectures:
-        - x86_64
-      MemorySize: 1536
+      MemorySize: 2048
       Description: choosee-api get by ID
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBReadPolicy:
-            TableName: !Ref SessionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ChoicesTable
       Environment:
         Variables:
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
+          DYNAMODB_TABLE_NAME: !Ref ChoicesTable
       Events:
         ApiKey:
           Type: Api
           Properties:
             RestApiId: !Ref Api
-            Path: /sessions/{sessionId}
+            Path: /choices/{choiceId}
             Method: get
             Auth:
               ApiKeyRequired: true
@@ -286,7 +164,7 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /sessions/{sessionId}
+            Path: /choices/{choiceId}
             Method: get
             Auth:
               Authorizer: NONE
@@ -303,12 +181,12 @@ Resources:
         Target: 'es2020'
         Sourcemap: true
         EntryPoints:
-          - src/handlers/get-session-by-id.ts
+          - src/handlers/get-choice-by-id.ts
 
-  GetSessionByIdLogGroup:
+  GetChoiceByIdLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${GetSessionByIdFunction}
+      LogGroupName: !Sub /aws/lambda/${GetChoiceByIdFunction}
       RetentionInDays: 30
       Tags:
         - Key: 'created-by'
@@ -318,14 +196,16 @@ Resources:
         - Key: 'environment'
           Value: !Ref Environment
 
-  GetSessionByIdLogGroupSubscription:
+  GetChoiceByIdLogGroupSubscription:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       DestinationArn: !Sub
         - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref GetSessionByIdLogGroup
+      LogGroupName: !Ref GetChoiceByIdLogGroup
+
+  ## Decisions
 
   GetDecisionsByIdFunction:
     Type: AWS::Serverless::Function
@@ -396,76 +276,6 @@ Resources:
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
       LogGroupName: !Ref GetDecisionsByIdLogGroup
-
-  PatchSessionFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/patch-session.patchItemHandler
-      Runtime: nodejs22.x
-      Architectures:
-        - x86_64
-      MemorySize: 512
-      Description: choosee-api patch item
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
-            TableName: !Ref SessionsTable
-      Environment:
-        Variables:
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-      Events:
-        ApiKey:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /sessions/{sessionId}
-            Method: patch
-            Auth:
-              ApiKeyRequired: true
-        Http:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /sessions/{sessionId}
-            Method: patch
-            Auth:
-              Authorizer: CognitoAuthorizer
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 15
-      Tracing: Active
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: 'es2020'
-        Sourcemap: true
-        EntryPoints:
-          - src/handlers/patch-session.ts
-
-  PatchSessionLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${PatchSessionFunction}
-      RetentionInDays: 30
-      Tags:
-        - Key: 'created-by'
-          Value: 'choosee-api'
-        - Key: 'created-for'
-          Value: 'choosee'
-        - Key: 'environment'
-          Value: !Ref Environment
-
-  PatchSessionGroupSubscription:
-    Type: AWS::Logs::SubscriptionFilter
-    Properties:
-      DestinationArn: !Sub
-        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
-        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
-      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref PatchSessionLogGroup
 
   PatchDecisionFunction:
     Type: AWS::Serverless::Function
@@ -540,10 +350,152 @@ Resources:
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
       LogGroupName: !Ref PatchDecisionLogGroup
 
+  ## Sessions
+
+  GetSessionByIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/get-session-by-id.getSessionByIdHandler
+      Runtime: nodejs22.x
+      Architectures:
+        - x86_64
+      MemorySize: 1536
+      Description: choosee-api get by ID
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBReadPolicy:
+            TableName: !Ref SessionsTable
+      Environment:
+        Variables:
+          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /sessions/{sessionId}
+            Method: get
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sessions/{sessionId}
+            Method: get
+            Auth:
+              Authorizer: NONE
+      Tags:
+        'created-by': 'choosee-api'
+        'created-for': 'choosee'
+        'environment': !Ref Environment
+      Timeout: 10
+      Tracing: Active
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/get-session-by-id.ts
+
+  GetSessionByIdLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetSessionByIdFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  GetSessionByIdLogGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref GetSessionByIdLogGroup
+
+  PatchSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/patch-session.patchSessionHandler
+      Runtime: nodejs22.x
+      Architectures:
+        - x86_64
+      MemorySize: 512
+      Description: choosee-api patch item
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+      Environment:
+        Variables:
+          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /sessions/{sessionId}
+            Method: patch
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sessions/{sessionId}
+            Method: patch
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Tags:
+        'created-by': 'choosee-api'
+        'created-for': 'choosee'
+        'environment': !Ref Environment
+      Timeout: 15
+      Tracing: Active
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/patch-session.ts
+
+  PatchSessionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PatchSessionFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  PatchSessionGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref PatchSessionLogGroup
+
   PostSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/post-session.postItemHandlerUnauthenticated
+      Handler: src/handlers/post-session.postSessionHandlerUnauthenticated
       Runtime: nodejs22.x
       Architectures:
         - x86_64
@@ -617,7 +569,7 @@ Resources:
   PostSessionAuthedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/post-session.postItemHandlerAuthenticated
+      Handler: src/handlers/post-session.postSessionHandlerAuthenticated
       Runtime: nodejs22.x
       Architectures:
         - x86_64
@@ -687,68 +639,7 @@ Resources:
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
       LogGroupName: !Ref PostSessionAuthedLogGroup
 
-  PostSendTextFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/post-send-text.postSendTextHandler
-      Runtime: nodejs22.x
-      Architectures:
-        - x86_64
-      MemorySize: 1536
-      Description: choosee-api post send text
-      Policies:
-        - AWSLambdaBasicExecutionRole
-      Environment:
-        Variables:
-          CORS_DOMAIN: !FindInMap [EnvironmentMap, !Ref Environment, corsDomain]
-          SMS_API_KEY: !Ref SmsApiKey
-          SMS_API_URL: !FindInMap [EnvironmentMap, !Ref Environment, smsApiUrl]
-          USER_POOL_ID: !FindInMap [EnvironmentMap, !Ref Environment, userPool]
-      Events:
-        Http:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /sessions/{sessionId}/send-text
-            Method: post
-            Auth:
-              Authorizer: CognitoAuthorizer
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 10
-      Tracing: Active
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: 'es2020'
-        Sourcemap: true
-        EntryPoints:
-          - src/handlers/post-send-text.ts
-
-  PostSendTextLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${PostSendTextFunction}
-      RetentionInDays: 30
-      Tags:
-        - Key: 'created-by'
-          Value: 'choosee-api'
-        - Key: 'created-for'
-          Value: 'choosee'
-        - Key: 'environment'
-          Value: !Ref Environment
-
-  PostSendTextGroupSubscription:
-    Type: AWS::Logs::SubscriptionFilter
-    Properties:
-      DestinationArn: !Sub
-        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
-        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
-      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref PostSendTextLogGroup
+  ## SMS
 
   PostSendTextToFunction:
     Type: AWS::Serverless::Function
@@ -813,33 +704,46 @@ Resources:
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
       LogGroupName: !Ref PostSendTextToLogGroup
 
-  PostUpdateStatusFunction:
+  ## Reverse Geocode
+
+  GetReverseGeocodeFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/post-update-status.postUpdateStatus
+      Handler: src/handlers/get-reverse-geocode.getReverseGeocodeHandlerUnauthenticated
       Runtime: nodejs22.x
       Architectures:
         - x86_64
-      MemorySize: 1536
-      Description: choosee-api post update status
+      MemorySize: 1024
+      Description: choosee-api reverse geocode
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
-            TableName: !Ref SessionsTable
+      Environment:
+        Variables:
+          GOOGLE_API_KEY: !Ref GoogleApiKey
+          NODE_OPTIONS: '--disable-warning DEP0040'
+          RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
       Events:
         ApiKey:
           Type: Api
           Properties:
             RestApiId: !Ref Api
-            Path: /sessions/{sessionId}/update-status
-            Method: post
+            Path: /reverse-geocode
+            Method: get
             Auth:
               ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reverse-geocode
+            Method: get
+            Auth:
+              Authorizer: NONE
       Tags:
         'created-by': 'choosee-api'
         'created-for': 'choosee'
         'environment': !Ref Environment
-      Timeout: 60
+      Timeout: 10
       Tracing: Active
     Metadata:
       BuildMethod: esbuild
@@ -848,12 +752,12 @@ Resources:
         Target: 'es2020'
         Sourcemap: true
         EntryPoints:
-          - src/handlers/post-update-status.ts
+          - src/handlers/get-reverse-geocode.ts
 
-  PostUpdateStatusLogGroup:
+  GetReverseGeocodeLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${PostUpdateStatusFunction}
+      LogGroupName: !Sub /aws/lambda/${GetReverseGeocodeFunction}
       RetentionInDays: 30
       Tags:
         - Key: 'created-by'
@@ -863,14 +767,84 @@ Resources:
         - Key: 'environment'
           Value: !Ref Environment
 
-  PostUpdateStatusGroupSubscription:
+  GetReverseGeocodeLogGroupSubscription:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       DestinationArn: !Sub
         - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref PostUpdateStatusLogGroup
+      LogGroupName: !Ref GetReverseGeocodeLogGroup
+
+  GetReverseGeocodeAuthedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/get-reverse-geocode.getReverseGeocodeHandlerAuthenticated
+      Runtime: nodejs22.x
+      Architectures:
+        - x86_64
+      MemorySize: 1024
+      Description: choosee-api reverse geocode
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          GOOGLE_API_KEY: !Ref GoogleApiKey
+          NODE_OPTIONS: '--disable-warning DEP0040'
+          RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /reverse-geocode/authed
+            Method: get
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /reverse-geocode/authed
+            Method: get
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Tags:
+        'created-by': 'choosee-api'
+        'created-for': 'choosee'
+        'environment': !Ref Environment
+      Timeout: 10
+      Tracing: Active
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/get-reverse-geocode.ts
+
+  GetReverseGeocodeAuthedLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetReverseGeocodeAuthedFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  GetReverseGeocodeAuthedLogGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref GetReverseGeocodeAuthedLogGroup
 
   # DynamoDB
 
@@ -880,21 +854,17 @@ Resources:
       AttributeDefinitions:
         - AttributeName: ChoiceId
           AttributeType: S
-        - AttributeName: Expiration
-          AttributeType: N
       BillingMode: PAY_PER_REQUEST
       KeySchema:
         - AttributeName: ChoiceId
           KeyType: HASH
-        - AttributeName: Expiration
-          KeyType: RANGE
       TimeToLiveSpecification:
         AttributeName: Expiration
         Enabled: true
       TableName: !FindInMap [EnvironmentMap, !Ref Environment, choicesTable]
       Tags:
         - Key: 'created-by'
-          Value: 'choosee-maps-api'
+          Value: 'choosee-api'
         - Key: 'created-for'
           Value: 'choosee'
         - Key: 'environment'
@@ -908,8 +878,6 @@ Resources:
           AttributeType: S
         - AttributeName: UserId
           AttributeType: S
-        - AttributeName: Expiration
-          AttributeType: N
       BillingMode: PAY_PER_REQUEST
       KeySchema:
         - AttributeName: SessionId
@@ -934,8 +902,6 @@ Resources:
       AttributeDefinitions:
         - AttributeName: SessionId
           AttributeType: S
-        - AttributeName: Expiration
-          AttributeType: N
       BillingMode: PAY_PER_REQUEST
       KeySchema:
         - AttributeName: SessionId

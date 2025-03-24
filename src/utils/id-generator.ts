@@ -1,34 +1,35 @@
 import { idMaxLength, idMinLength } from '../config'
-import { getSessionById } from '../services/dynamodb'
 
 // Don't allow vowells, digits that look like vowells, or ambiguous characters
 const allowedCharacters = '256789bcdfghjmnpqrstvwxz'
+
+type GetById = (id: string) => any
 
 const valueToId = (value: number): string => {
   const digit = allowedCharacters.charAt(value % allowedCharacters.length)
   return value >= allowedCharacters.length ? valueToId(Math.floor(value / allowedCharacters.length)) + digit : digit
 }
 
-const idExists = async (sessionId: string): Promise<boolean> => {
+const idExists = async (id: string, getById: GetById): Promise<boolean> => {
   try {
-    await getSessionById(sessionId)
+    await getById(id)
     return true
   } catch (error) {
     return false
   }
 }
 
-const getRandomId = async (minValue: number, maxValue: number): Promise<string> => {
+const getRandomId = async (minValue: number, maxValue: number, getById: GetById): Promise<string> => {
   const randomValue = Math.round(Math.random() * (maxValue - minValue) + minValue)
-  const sessionId = valueToId(randomValue)
-  if (await idExists(sessionId)) {
-    return getRandomId(minValue, maxValue)
+  const id = valueToId(randomValue)
+  if (await idExists(id, getById)) {
+    return getRandomId(minValue, maxValue, getById)
   }
-  return sessionId
+  return id
 }
 
-export const getNextId = async (): Promise<string> => {
+export const getNextId = async (getById: GetById): Promise<string> => {
   const minValue = Math.pow(allowedCharacters.length, idMinLength - 1)
   const maxValue = Math.pow(allowedCharacters.length, idMaxLength)
-  return getRandomId(minValue, maxValue)
+  return getRandomId(minValue, maxValue, getById)
 }
