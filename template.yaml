@@ -151,6 +151,7 @@ Resources:
       Environment:
         Variables:
           DYNAMODB_TABLE_NAME: !Ref ChoicesTable
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
       Events:
         ApiKey:
           Type: Api
@@ -223,6 +224,7 @@ Resources:
       Environment:
         Variables:
           DYNAMODB_DECISIONS_TABLE_NAME: !Ref DecisionsTable
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
       Events:
         ApiKey:
           Type: Api
@@ -296,6 +298,7 @@ Resources:
         Variables:
           DYNAMODB_DECISIONS_TABLE_NAME: !Ref DecisionsTable
           DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
       Events:
         ApiKey:
           Type: Api
@@ -368,6 +371,7 @@ Resources:
       Environment:
         Variables:
           DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
       Events:
         ApiKey:
           Type: Api
@@ -438,6 +442,7 @@ Resources:
       Environment:
         Variables:
           DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
       Events:
         ApiKey:
           Type: Api
@@ -508,10 +513,11 @@ Resources:
       Environment:
         Variables:
           DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-          SESSION_ID_MIN_LENGTH: 3
-          SESSION_ID_MAX_LENGTH: 4
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
           RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
           SESSION_EXPIRE_HOURS: 24
+          SESSION_ID_MAX_LENGTH: 4
+          SESSION_ID_MIN_LENGTH: 3
       Events:
         ApiKey:
           Type: Api
@@ -582,9 +588,10 @@ Resources:
       Environment:
         Variables:
           DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-          SESSION_ID_MIN_LENGTH: 3
-          SESSION_ID_MAX_LENGTH: 4
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
           SESSION_EXPIRE_HOURS: 24
+          SESSION_ID_MAX_LENGTH: 4
+          SESSION_ID_MIN_LENGTH: 3
       Events:
         ApiKey:
           Type: Api
@@ -655,6 +662,7 @@ Resources:
       Environment:
         Variables:
           CORS_DOMAIN: !FindInMap [EnvironmentMap, !Ref Environment, corsDomain]
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
           SMS_API_KEY: !Ref SmsApiKey
           SMS_API_URL: !FindInMap [EnvironmentMap, !Ref Environment, smsApiUrl]
           USER_POOL_ID: !FindInMap [EnvironmentMap, !Ref Environment, userPool]
@@ -720,7 +728,7 @@ Resources:
       Environment:
         Variables:
           GOOGLE_API_KEY: !Ref GoogleApiKey
-          NODE_OPTIONS: '--disable-warning DEP0040'
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
           RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
       Events:
         ApiKey:
@@ -790,7 +798,7 @@ Resources:
       Environment:
         Variables:
           GOOGLE_API_KEY: !Ref GoogleApiKey
-          NODE_OPTIONS: '--disable-warning DEP0040'
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
           RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
       Events:
         ApiKey:
