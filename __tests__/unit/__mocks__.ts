@@ -64,7 +64,7 @@ export const choice: Choice = {
   },
   radius: 50_000,
   rankBy: 'POPULARITY',
-  type: 'restaurant',
+  type: ['restaurant'],
 }
 
 export const newChoice: NewChoice = {
@@ -74,7 +74,7 @@ export const newChoice: NewChoice = {
   longitude: -92.3128326,
   radius: 50_000,
   rankBy: 'POPULARITY',
-  type: 'restaurant',
+  type: ['restaurant'],
 }
 
 // Decisions
@@ -103,7 +103,7 @@ export const session: Session = {
   status: {
     current: 'deciding',
   },
-  type: 'restaurant',
+  type: ['restaurant'],
   voterCount: 2,
 }
 
@@ -113,7 +113,7 @@ export const newSession: NewSession = {
   expiration: 1742868571384,
   radius: 3_757,
   rankBy: 'POPULARITY',
-  type: 'restaurant',
+  type: ['restaurant'],
   voterCount: 2,
 }
 

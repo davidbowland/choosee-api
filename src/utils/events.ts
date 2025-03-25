@@ -21,14 +21,10 @@ export const formatSession = (session: NewSession): NewSession => {
     },
     properties: {
       address: { type: 'string' },
-      exclude: {
-        elements: {
-          enum: placeTypes,
-        },
-      },
+      exclude: { elements: { enum: placeTypes } },
       radius: { type: 'uint32' },
       rankBy: { enum: ['DISTANCE', 'POPULARITY'] },
-      type: { enum: placeTypes },
+      type: { elements: { enum: placeTypes } },
       voterCount: { type: 'uint32' },
     },
   }

@@ -23,7 +23,7 @@ export interface Choice {
   latLng: LatLng
   radius: number
   rankBy: RankByType
-  type: string
+  type: string[]
 }
 
 export interface ChoiceBatch {
@@ -39,7 +39,7 @@ export interface NewChoice {
   longitude?: number
   radius: number
   rankBy: RankByType
-  type: string
+  type: string[]
 }
 
 // Decisions
@@ -64,7 +64,7 @@ export interface Session {
   radius: number
   rankBy: RankByType
   status: StatusObject
-  type: string
+  type: string[]
   voterCount: number
 }
 
@@ -76,7 +76,7 @@ export interface NewSession {
   longitude?: number
   radius: number
   rankBy: RankByType
-  type: string
+  type: string[]
   voterCount: number
 }
 

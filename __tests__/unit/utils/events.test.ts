@@ -50,7 +50,7 @@ describe('events', () => {
     })
 
     test.each([undefined, 'fnord'])('expect error on invalid type (%s)', (type) => {
-      const invalidTypeSession = { ...newSession, type } as NewSession
+      const invalidTypeSession = { ...newSession, type: type ? [type] : undefined } as NewSession
       expect(() => formatSession(invalidTypeSession)).toThrow()
     })
 

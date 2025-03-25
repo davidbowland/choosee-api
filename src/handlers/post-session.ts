@@ -25,7 +25,7 @@ const getGeocodedAddress = async (newChoice: NewChoice): Promise<GeocodedAddress
 
 const createChoice = async (newChoice: NewChoice): Promise<APIGatewayProxyResultV2<any>> => {
   const geocodedAddress = await getGeocodedAddress(newChoice)
-  const places = await fetchPlaceResults(geocodedAddress.latLng, [newChoice.type], newChoice.rankBy, newChoice.radius)
+  const places = await fetchPlaceResults(geocodedAddress.latLng, newChoice.type, newChoice.rankBy, newChoice.radius)
   log('Google API results', JSON.stringify({ geocodedAddress, places }))
 
   const choiceId = await getNextId(getChoiceById)
