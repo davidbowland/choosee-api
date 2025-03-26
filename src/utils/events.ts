@@ -22,7 +22,7 @@ export const formatSession = (session: NewSession): NewSession => {
     properties: {
       address: { type: 'string' },
       exclude: { elements: { enum: placeTypes } },
-      radius: { type: 'uint32' },
+      radius: { type: 'float64' },
       rankBy: { enum: ['DISTANCE', 'POPULARITY'] },
       type: { elements: { enum: placeTypes } },
       voterCount: { type: 'uint32' },
