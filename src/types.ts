@@ -18,12 +18,12 @@ export type RankByType = 'DISTANCE' | 'POPULARITY'
 export interface Choice {
   address: string
   choices: PlaceDetails[]
-  exclude: string[]
+  exclude: PlaceType[]
   expiration: number
   latLng: LatLng
   radius: number
   rankBy: RankByType
-  type: string[]
+  type: PlaceType[]
 }
 
 export interface ChoiceBatch {
@@ -33,13 +33,13 @@ export interface ChoiceBatch {
 
 export interface NewChoice {
   address: string
-  exclude: string[]
+  exclude: PlaceType[]
   expiration?: number
   latitude?: number
   longitude?: number
   radius: number
   rankBy: RankByType
-  type: string[]
+  type: PlaceType[]
 }
 
 // Decisions
@@ -57,26 +57,26 @@ export interface Decision {
 export interface Session {
   address: string
   choiceId: string
-  exclude: string[]
+  exclude: PlaceType[]
   expiration: number
   location: LatLng
   owner?: string
   radius: number
   rankBy: RankByType
   status: StatusObject
-  type: string[]
+  type: PlaceType[]
   voterCount: number
 }
 
 export interface NewSession {
   address: string
-  exclude: string[]
+  exclude: PlaceType[]
   expiration?: number
   latitude?: number
   longitude?: number
   radius: number
   rankBy: RankByType
-  type: string[]
+  type: PlaceType[]
   voterCount: number
 }
 
@@ -86,6 +86,8 @@ export interface StatusObject {
 }
 
 // Places
+
+export type PlaceType = string
 
 export interface PlaceDetails {
   formattedAddress?: string | null
@@ -103,7 +105,11 @@ export interface PlaceDetails {
 
 export interface PlaceResponse {
   data: PlaceDetails[]
-  nextPageToken: string
+}
+
+export interface PlaceTypeDisplay {
+  display: string
+  value: PlaceType
 }
 
 export interface LatLng {

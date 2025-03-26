@@ -854,6 +854,74 @@ Resources:
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
       LogGroupName: !Ref GetReverseGeocodeAuthedLogGroup
 
+  ## Places
+
+  GetPlaceTypesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/get-place-types.getPlaceTypesHandler
+      Runtime: nodejs22.x
+      Architectures:
+        - x86_64
+      MemorySize: 1024
+      Description: choosee-api place types
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /places/types
+            Method: get
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /places/types
+            Method: get
+      Tags:
+        'created-by': 'choosee-api'
+        'created-for': 'choosee'
+        'environment': !Ref Environment
+      Timeout: 10
+      Tracing: Active
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2020'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/get-place-types.ts
+
+  GetPlaceTypesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetPlaceTypesFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  GetPlaceTypesLogGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref GetPlaceTypesLogGroup
+
   # DynamoDB
 
   ChoicesTable:

@@ -10,7 +10,7 @@ const ajv = new AJV({ allErrors: true })
 // 60 minutes * 60 seconds * 1000 milliseconds = 3_600_000
 const SESSION_EXPIRATION_DURATION = sessionExpireHours * 3_600_000
 
-// Session
+/* Sessions */
 
 export const formatSession = (session: NewSession): NewSession => {
   const jsonTypeDefinition = {
@@ -114,7 +114,7 @@ export const formatLatLng = (latLng: any): LatLng => {
   return { latitude, longitude }
 }
 
-/* Event */
+/* Events */
 
 const parseEventBody = (event: APIGatewayProxyEventV2): unknown =>
   JSON.parse(

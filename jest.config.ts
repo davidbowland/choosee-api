@@ -26,7 +26,7 @@ export default {
   coverageDirectory: 'coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
-  coveragePathIgnorePatterns: ['types.ts'],
+  coveragePathIgnorePatterns: ['^types.ts', 'assets/*'],
 
   // Indicates which provider should be used to instrument code for coverage
   coverageProvider: 'v8',
@@ -86,6 +86,7 @@ export default {
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
   moduleNameMapper: {
+    '^@assets/(.*)$': '<rootDir>/src/assets/$1',
     '^@config$': '<rootDir>/src/config',
     '^@events/(.*)$': '<rootDir>/events/$1',
     '^@handlers/(.*)$': '<rootDir>/src/handlers/$1',
