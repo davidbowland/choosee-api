@@ -108,6 +108,8 @@ export interface PlaceResponse {
 }
 
 export interface PlaceTypeDisplay {
+  defaultExclude?: boolean
+  defaultType?: boolean
   display: string
   value: PlaceType
 }

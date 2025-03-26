@@ -14,8 +14,9 @@ describe('get-place-types', () => {
       const placeTypes = JSON.parse(result.body).types as PlaceTypeDisplay
       expect(placeTypes).toEqual(
         expect.arrayContaining([
+          { defaultType: true, display: 'Any restaurant', value: 'restaurant' },
           { display: 'Cat cafe', value: 'cat_cafe' },
-          { display: 'Restaurant', value: 'restaurant' },
+          { defaultExclude: true, display: 'Fast food', value: 'fast_food_restaurant' },
         ]),
       )
       expect(result).toEqual(expect.objectContaining({ statusCode: 200 }))

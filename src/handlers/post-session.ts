@@ -113,9 +113,10 @@ export const postSessionHandlerUnauthenticated = async (
     if (score < 0.7) {
       return status.FORBIDDEN
     }
+
+    return await postSessionHandler(event)
   } catch (error) {
+    logError(error)
     return status.INTERNAL_SERVER_ERROR
   }
-
-  return await postSessionHandler(event)
 }

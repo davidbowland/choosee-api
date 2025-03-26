@@ -13,6 +13,8 @@ const SESSION_EXPIRATION_DURATION = sessionExpireHours * 3_600_000
 /* Sessions */
 
 export const formatSession = (session: NewSession): NewSession => {
+  const placeTypeValues = placeTypes.map((t) => t.value)
+
   const jsonTypeDefinition = {
     optionalProperties: {
       expiration: { type: 'float64' },
@@ -21,10 +23,10 @@ export const formatSession = (session: NewSession): NewSession => {
     },
     properties: {
       address: { type: 'string' },
-      exclude: { elements: { enum: placeTypes } },
+      exclude: { elements: { enum: placeTypeValues } },
       radius: { type: 'float64' },
       rankBy: { enum: ['DISTANCE', 'POPULARITY'] },
-      type: { elements: { enum: placeTypes } },
+      type: { elements: { enum: placeTypeValues } },
       voterCount: { type: 'uint32' },
     },
   }
