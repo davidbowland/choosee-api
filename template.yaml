@@ -885,6 +885,8 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /places/types
             Method: get
+            Auth:
+              Authorizer: NONE
       Tags:
         'created-by': 'choosee-api'
         'created-for': 'choosee'
