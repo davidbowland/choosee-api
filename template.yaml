@@ -138,7 +138,7 @@ Resources:
   GetChoiceByIdFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/get-choice-by-id.GetChoiceByIdHandler
+      Handler: src/handlers/get-choice-by-id.getChoiceByIdHandler
       Runtime: nodejs22.x
       Architectures:
         - x86_64
