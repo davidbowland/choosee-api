@@ -7,8 +7,10 @@ import { sessionExpireHours } from '../config'
 
 const ajv = new AJV({ allErrors: true })
 
-// 60 minutes * 60 seconds * 1000 milliseconds = 3_600_000
-const SESSION_EXPIRATION_DURATION = sessionExpireHours * 3_600_000
+// hours * 60 minutes / hour * 60 seconds / minute = 3_600
+const SESSION_EXPIRATION_DURATION = sessionExpireHours * 3_600
+
+const getTimeInSeconds = () => Math.floor(Date.now() / 1000)
 
 /* Sessions */
 
@@ -30,7 +32,7 @@ export const formatSession = (session: NewSession): NewSession => {
       voterCount: { type: 'uint32' },
     },
   }
-  const lastExpiration = new Date().getTime() + SESSION_EXPIRATION_DURATION
+  const lastExpiration = getTimeInSeconds() + SESSION_EXPIRATION_DURATION
 
   if (ajv.validate(jsonTypeDefinition, session) === false) {
     throw new Error(JSON.stringify(ajv.errors))

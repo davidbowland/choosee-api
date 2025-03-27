@@ -2,8 +2,8 @@ import { mocked } from 'jest-mock'
 
 import * as dynamodb from '@services/dynamodb'
 import * as events from '@utils/events'
+import { APIGatewayProxyEventV2, Decision } from '@types'
 import { decision, session } from '../__mocks__'
-import { APIGatewayProxyEventV2 } from '@types'
 import eventJson from '@events/get-decisions-by-id.json'
 import { getDecisionsByIdHandler } from '@handlers/get-decisions-by-id'
 import status from '@utils/status'
@@ -14,6 +14,10 @@ jest.mock('@utils/logging')
 
 describe('get-decisions-by-id', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
+  const expectedResult: Decision = {
+    decisions: { "Shakespeare's Pizza - Downtown": true },
+    expiration: 1728533252,
+  }
 
   beforeAll(() => {
     mocked(dynamodb).getDecisionById.mockResolvedValue(decision)
@@ -38,7 +42,7 @@ describe('get-decisions-by-id', () => {
       const result = await getDecisionsByIdHandler(event)
       expect(result).toEqual({
         ...status.OK,
-        body: JSON.stringify({ decisions: { "Shakespeare's Pizza - Downtown": true } }),
+        body: JSON.stringify(expectedResult),
       })
     })
 
@@ -47,7 +51,7 @@ describe('get-decisions-by-id', () => {
       const result = await getDecisionsByIdHandler(tempEvent)
       expect(result).toEqual({
         ...status.OK,
-        body: JSON.stringify({ decisions: { "Shakespeare's Pizza - Downtown": true } }),
+        body: JSON.stringify(expectedResult),
       })
     })
   })

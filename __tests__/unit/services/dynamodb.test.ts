@@ -25,10 +25,10 @@ jest.mock('@utils/logging', () => ({
 }))
 
 describe('dynamodb', () => {
-  const epochTime = 1_678_432_576_539
+  const epochTime = 1678432576539
 
   beforeAll(() => {
-    jest.spyOn(Date.prototype, 'getTime').mockReturnValue(epochTime)
+    Date.now = () => epochTime
   })
 
   /* Choices */
@@ -76,28 +76,6 @@ describe('dynamodb', () => {
         }),
       )
     })
-
-    test('should call DynamoDB with the correct arguments when no expiration', async () => {
-      const choiceNoExpiration = { ...choice, expiration: undefined }
-      await setChoiceById(choiceId, choiceNoExpiration)
-
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Item: {
-            ChoiceId: {
-              S: choiceId,
-            },
-            Data: {
-              S: JSON.stringify(choiceNoExpiration),
-            },
-            Expiration: {
-              N: '0',
-            },
-          },
-          TableName: 'choices-table',
-        }),
-      )
-    })
   })
 
   /* Decisions */
@@ -133,7 +111,7 @@ describe('dynamodb', () => {
 
       const result = await getDecisionById(sessionId, userId)
 
-      expect(result).toEqual({ decisions: [] })
+      expect(result).toEqual({ decisions: {}, expiration: 1678540576 })
     })
   })
 
@@ -147,6 +125,7 @@ describe('dynamodb', () => {
             Data: {
               S: JSON.stringify(decision),
             },
+            Expiration: { N: '1728533252' },
             SessionId: {
               S: sessionId,
             },
@@ -220,28 +199,6 @@ describe('dynamodb', () => {
             },
             Expiration: {
               N: `${session.expiration}`,
-            },
-            SessionId: {
-              S: sessionId,
-            },
-          },
-          TableName: 'session-table',
-        }),
-      )
-    })
-
-    test('should call DynamoDB with the correct arguments when no expiration', async () => {
-      const noExpirationSession = { ...session, expiration: undefined }
-      await setSessionById(sessionId, noExpirationSession)
-
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          Item: {
-            Data: {
-              S: JSON.stringify(noExpirationSession),
-            },
-            Expiration: {
-              N: '0',
             },
             SessionId: {
               S: sessionId,

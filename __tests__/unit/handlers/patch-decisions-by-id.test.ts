@@ -18,6 +18,7 @@ describe('patch-decisions-by-id', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
   const expectedResult: Decision = {
     decisions: { "Shakespeare's Pizza - Downtown": false },
+    expiration: 1728533252,
   }
   const jwt = {
     phone_number: '+15551234567',
@@ -97,7 +98,7 @@ describe('patch-decisions-by-id', () => {
       const result = await patchDecisionByIdHandler(event)
       expect(result).toEqual({
         ...status.OK,
-        body: JSON.stringify({ decisions: { "Shakespeare's Pizza - Downtown": false } }),
+        body: JSON.stringify(expectedResult),
       })
     })
 
@@ -109,7 +110,7 @@ describe('patch-decisions-by-id', () => {
       })
       expect(result).toEqual({
         ...status.OK,
-        body: JSON.stringify({ decisions: { "Shakespeare's Pizza - Downtown": false } }),
+        body: JSON.stringify(expectedResult),
       })
     })
 
@@ -118,7 +119,7 @@ describe('patch-decisions-by-id', () => {
       const result = await patchDecisionByIdHandler(event)
       expect(result).toEqual({
         ...status.OK,
-        body: JSON.stringify({ decisions: { "Shakespeare's Pizza - Downtown": false } }),
+        body: JSON.stringify(expectedResult),
       })
     })
   })

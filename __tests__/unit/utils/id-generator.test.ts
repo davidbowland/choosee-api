@@ -4,7 +4,6 @@ import { session } from '../__mocks__'
 jest.mock('@services/dynamodb')
 
 describe('id-generator', () => {
-  Math.random
   const mockGetById = jest.fn()
   const mockRandom = jest.fn()
 
@@ -17,12 +16,12 @@ describe('id-generator', () => {
       mockGetById.mockRejectedValue(undefined)
     })
 
-    test('expect id returned passed to getSessionById', async () => {
+    test('expect id returned passed to getNextId', async () => {
       const result = await getNextId(mockGetById)
       expect(result).toEqual('j2j2')
     })
 
-    test('expect second sessionId when first exists', async () => {
+    test('expect second id when first exists', async () => {
       mockGetById.mockResolvedValueOnce(session)
       mockRandom.mockReturnValueOnce(0.5)
       mockRandom.mockReturnValueOnce(0.25)

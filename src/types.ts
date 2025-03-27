@@ -50,6 +50,7 @@ export interface DecisionObject {
 
 export interface Decision {
   decisions: DecisionObject
+  expiration: number
 }
 
 // Sessions

@@ -8,7 +8,6 @@ process.env.DYNAMODB_CHOICES_TABLE_NAME = 'choices-table'
 process.env.DYNAMODB_DECISIONS_TABLE_NAME = 'decision-table'
 process.env.DYNAMODB_SESSIONS_TABLE_NAME = 'session-table'
 
-process.env.CHOICE_EXPIRE_HOURS = '30'
 process.env.DECISION_EXPIRE_HOURS = '30'
 process.env.SESSION_EXPIRE_HOURS = '30'
 

@@ -20,7 +20,6 @@ export const dynamodbChoicesTable = process.env.DYNAMODB_CHOICES_TABLE_NAME as s
 export const dynamodbDecisionsTableName = process.env.DYNAMODB_DECISIONS_TABLE_NAME as string
 export const dynamodbSessionsTableName = process.env.DYNAMODB_SESSIONS_TABLE_NAME as string
 
-export const choiceExpireHours = parseInt(process.env.CHOICE_EXPIRE_HOURS as string, 10)
 export const decisionExpireHours = parseInt(process.env.DECISION_EXPIRE_HOURS as string, 10)
 export const sessionExpireHours = parseInt(process.env.SESSION_EXPIRE_HOURS as string, 10)
 

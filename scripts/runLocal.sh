@@ -15,7 +15,6 @@ SAM_TEMPLATE=template.yaml
 sam build --template ${SAM_TEMPLATE}
 
 # Start the API locally
-export CHOICE_EXPIRE_HOURS=30
 export CORS_DOMAIN='http://choosee.bowland.link'
 export DYNAMODB_DECISIONS_TABLE_NAME=choosee-api-decisions-test
 export DYNAMODB_SESSIONS_TABLE_NAME=choosee-api-sessions-test

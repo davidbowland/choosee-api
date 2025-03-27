@@ -14,8 +14,10 @@ import postSendTextToEventJson from '@events/post-send-text-to.json'
 import reverseEventJson from '@events/get-reverse-geocode.json'
 
 describe('events', () => {
+  const epochTime = 1742760571384
+
   beforeAll(() => {
-    jest.spyOn(Date.prototype, 'getTime').mockReturnValue(1_742_760_571_384)
+    Date.now = () => epochTime
   })
 
   describe('formatSession', () => {
@@ -25,7 +27,7 @@ describe('events', () => {
     })
 
     test('expect error when expiration too late session', () => {
-      const tooLateExpirationSession = { ...newSession, expiration: new Date().getTime() + 100_000_000_000 }
+      const tooLateExpirationSession = { ...newSession, expiration: epochTime + 100_000_000_000 }
       expect(() => formatSession(tooLateExpirationSession)).toThrow()
     })
 
@@ -62,7 +64,7 @@ describe('events', () => {
     test('expect formatted session returned', () => {
       const result = formatSession(newSession)
       expect(result).toEqual(expect.objectContaining(newSession))
-      expect(result.expiration).toBeGreaterThan(new Date().getTime())
+      expect(result.expiration).toBeGreaterThan(epochTime / 1000)
     })
   })
 
