@@ -71,6 +71,7 @@ describe('post-session', () => {
       expect(mocked(googleMaps).fetchPlaceResults).toHaveBeenCalledWith(
         { latitude: 39.0013395, longitude: -92.3128326 },
         ['restaurant'],
+        ['breakfast_restaurant'],
         'POPULARITY',
         3_757,
       )
@@ -129,6 +130,7 @@ describe('post-session', () => {
       expect(mocked(googleMaps).fetchPlaceResults).toHaveBeenCalledWith(
         { latitude: 39.0013395, longitude: -92.3128326 },
         ['restaurant'],
+        ['breakfast_restaurant'],
         'POPULARITY',
         3_757,
       )

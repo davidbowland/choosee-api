@@ -72,12 +72,13 @@ const fetchPicture = async (name: string): Promise<string> => {
 export const fetchPlaceResults = async (
   location: LatLng,
   types: string[], // e.g. ['restaurant']
+  exclude: string[],
   rankBy: RankByType,
   radius: number,
 ): Promise<PlaceDetails[]> => {
   const response = await placesClient.searchNearby(
     {
-      excludedTypes: HIDDEN_TYPES,
+      excludedTypes: HIDDEN_TYPES.concat(exclude),
       includedPrimaryTypes: types,
       languageCode: 'en',
       locationRestriction: {

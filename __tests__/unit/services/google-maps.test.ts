@@ -98,7 +98,10 @@ describe('google-maps', () => {
     const location: LatLng = { latitude: 39, longitude: -92 }
     const radius = 45_000
     const rankBy = 'DISTANCE'
-    const type = 'restaurant'
+
+    const primaryTypes = ['restaurant']
+    const exclude = ['cat_cafe', 'fast_food_restaurant']
+    const expectedHiddenTypes = HIDDEN_TYPES.concat(exclude)
 
     const otherArgs = {
       otherArgs: {
@@ -114,11 +117,11 @@ describe('google-maps', () => {
     })
 
     test('expect parameters passed to placesNearby', async () => {
-      await fetchPlaceResults(location, [type], rankBy, radius)
+      await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
       expect(mockSearchNearby).toHaveBeenCalledWith(
         {
-          excludedTypes: HIDDEN_TYPES,
-          includedPrimaryTypes: [type],
+          excludedTypes: expectedHiddenTypes,
+          includedPrimaryTypes: primaryTypes,
           languageCode: 'en',
           locationRestriction: {
             circle: {
@@ -133,11 +136,11 @@ describe('google-maps', () => {
     })
 
     test('expect radius passed when rank by prominence', async () => {
-      await fetchPlaceResults(location, [type], 'POPULARITY', radius)
+      await fetchPlaceResults(location, primaryTypes, exclude, 'POPULARITY', radius)
       expect(mockSearchNearby).toHaveBeenCalledWith(
         {
-          excludedTypes: HIDDEN_TYPES,
-          includedPrimaryTypes: [type],
+          excludedTypes: expectedHiddenTypes,
+          includedPrimaryTypes: primaryTypes,
           languageCode: 'en',
           locationRestriction: {
             circle: {
@@ -152,13 +155,13 @@ describe('google-maps', () => {
     })
 
     test('expect results returned', async () => {
-      const result = await fetchPlaceResults(location, [type], rankBy, radius)
+      const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
       expect(result).toEqual([place1, place2])
     })
 
     test('expect an empty array when response is undefined', async () => {
       mockSearchNearby.mockResolvedValueOnce([{}])
-      const result = await fetchPlaceResults(location, [type], rankBy, radius)
+      const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
       expect(result).toEqual([])
     })
   })
