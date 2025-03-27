@@ -146,7 +146,7 @@ Resources:
       Description: choosee-api get by ID
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
+        - DynamoDBReadPolicy:
             TableName: !Ref ChoicesTable
       Environment:
         Variables:
@@ -290,12 +290,16 @@ Resources:
       Description: choosee-api patch item
       Policies:
         - AWSLambdaBasicExecutionRole
+        - DynamoDBReadPolicy:
+            TableName: !Ref ChoicesTable
         - DynamoDBCrudPolicy:
             TableName: !Ref DecisionsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref SessionsTable
       Environment:
         Variables:
+          DECISION_EXPIRE_HOURS: 24
+          DYNAMODB_CHOICES_TABLE_NAME: !Ref ChoicesTable
           DYNAMODB_DECISIONS_TABLE_NAME: !Ref DecisionsTable
           DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
           NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning

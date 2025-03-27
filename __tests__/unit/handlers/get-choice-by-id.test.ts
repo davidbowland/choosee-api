@@ -25,8 +25,9 @@ describe('get-choice-by-id', () => {
     })
 
     test('expect OK when id exists', async () => {
+      const choices = choice.choices.map((c) => ({ ...c, formattedPriceLevel: { label: 'Moderate', rating: 2 } }))
       const result = await getChoiceByIdHandler(event)
-      expect(result).toEqual({ ...status.OK, body: JSON.stringify({ ...choice, choiceId }) })
+      expect(result).toEqual({ ...status.OK, body: JSON.stringify({ ...choice, choiceId, choices }) })
     })
   })
 })
