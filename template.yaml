@@ -517,11 +517,14 @@ Resources:
           DYNAMODB_CHOICES_TABLE_NAME: !Ref ChoicesTable
           DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
           GOOGLE_API_KEY: !Ref GoogleApiKey
+          GOOGLE_IMAGE_COUNT: 5
+          GOOGLE_IMAGE_MAX_HEIGHT: 300
+          GOOGLE_IMAGE_MAX_WIDTH: 400
+          ID_MAX_LENGTH: 4
+          ID_MIN_LENGTH: 3
           NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
           RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
           SESSION_EXPIRE_HOURS: 24
-          SESSION_ID_MAX_LENGTH: 4
-          SESSION_ID_MIN_LENGTH: 3
       Events:
         ApiKey:
           Type: Api
@@ -588,15 +591,22 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
+            TableName: !Ref ChoicesTable
+        - DynamoDBCrudPolicy:
             TableName: !Ref SessionsTable
       Environment:
         Variables:
+          DYNAMODB_CHOICES_TABLE_NAME: !Ref ChoicesTable
           DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
           GOOGLE_API_KEY: !Ref GoogleApiKey
+          GOOGLE_IMAGE_COUNT: 5
+          GOOGLE_IMAGE_MAX_HEIGHT: 300
+          GOOGLE_IMAGE_MAX_WIDTH: 400
+          ID_MAX_LENGTH: 4
+          ID_MIN_LENGTH: 3
           NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
+          RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
           SESSION_EXPIRE_HOURS: 24
-          SESSION_ID_MAX_LENGTH: 4
-          SESSION_ID_MIN_LENGTH: 3
       Events:
         ApiKey:
           Type: Api
