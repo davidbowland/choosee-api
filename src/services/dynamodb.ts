@@ -1,10 +1,20 @@
 import { DynamoDB, GetItemCommand, PutItemCommand, PutItemOutput, QueryCommand } from '@aws-sdk/client-dynamodb'
 
+import {
+  decisionExpireHours,
+  dynamodbChoicesTable,
+  dynamodbDecisionsTableName,
+  dynamodbSessionsTableName,
+} from '../config'
 import { Choice, Decision, Session } from '../types'
-import { dynamodbChoicesTable, dynamodbDecisionsTableName, dynamodbSessionsTableName } from '../config'
 import { xrayCapture } from '../utils/logging'
 
 const dynamodb = xrayCapture(new DynamoDB({ apiVersion: '2012-08-10' }))
+
+// hours * 60 minutes / hour * 60 seconds / minute = 3_600
+const DECISION_EXPIRATION_DURATION = decisionExpireHours * 3_600
+
+const getTimeInSeconds = () => Math.floor(Date.now() / 1000)
 
 /* Choices */
 
@@ -31,7 +41,7 @@ export const setChoiceById = async (choiceId: string, choice: Choice): Promise<P
         S: JSON.stringify(choice),
       },
       Expiration: {
-        N: `${choice.expiration ?? 0}`,
+        N: `${choice.expiration}`,
       },
     },
     TableName: dynamodbChoicesTable,
@@ -57,7 +67,7 @@ export const getDecisionById = async (sessionId: string, userId: string): Promis
   try {
     return JSON.parse(response.Item.Data.S)
   } catch (e) {
-    return { decisions: [] } as unknown as Decision
+    return { decisions: {}, expiration: getTimeInSeconds() + DECISION_EXPIRATION_DURATION } as Decision
   }
 }
 
@@ -66,6 +76,9 @@ export const setDecisionById = async (sessionId: string, userId: string, data: D
     Item: {
       Data: {
         S: JSON.stringify(data),
+      },
+      Expiration: {
+        N: `${data.expiration}`,
       },
       SessionId: {
         S: `${sessionId}`,
@@ -106,7 +119,7 @@ export const queryUserIdsBySessionId = async (sessionId: string): Promise<string
     TableName: dynamodbDecisionsTableName,
   })
   const response = await dynamodb.send(command)
-  return response.Items.map((item: any) => item.UserId.S)
+  return response.Items.map((item: { UserId: { S: string } }) => item.UserId.S)
 }
 
 export const setSessionById = async (sessionId: string, data: Session): Promise<PutItemOutput> => {
@@ -116,7 +129,7 @@ export const setSessionById = async (sessionId: string, data: Session): Promise<
         S: JSON.stringify(data),
       },
       Expiration: {
-        N: `${data.expiration ?? 0}`,
+        N: `${data.expiration}`,
       },
       SessionId: {
         S: `${sessionId}`,

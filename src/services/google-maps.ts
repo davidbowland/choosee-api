@@ -1,8 +1,8 @@
 import { AddressType, Client as GeocodeClient, ReverseGeocodeResponse } from '@googlemaps/google-maps-services-js'
 import { PlacesClient } from '@googlemaps/places'
 
-import { GeocodedAddress, LatLng, PlaceDetails, PriceLevel, RankByType } from '../types'
 import { googleApiKey, googleImageCount, googleImageMaxHeight, googleImageMaxWidth, googleTimeoutMs } from '../config'
+import { GeocodedAddress, LatLng, PlaceDetails, PriceLevel, RankByType } from '../types'
 import { xrayCaptureHttps } from '../utils/logging'
 
 export const HIDDEN_TYPES = [
@@ -72,12 +72,13 @@ const fetchPicture = async (name: string): Promise<string> => {
 export const fetchPlaceResults = async (
   location: LatLng,
   types: string[], // e.g. ['restaurant']
+  exclude: string[],
   rankBy: RankByType,
   radius: number,
 ): Promise<PlaceDetails[]> => {
   const response = await placesClient.searchNearby(
     {
-      excludedTypes: HIDDEN_TYPES,
+      excludedTypes: HIDDEN_TYPES.concat(exclude),
       includedPrimaryTypes: types,
       languageCode: 'en',
       locationRestriction: {

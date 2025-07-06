@@ -1,6 +1,6 @@
+import { getDecisionById } from '../services/dynamodb'
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from '../types'
 import { extractJwtFromEvent } from '../utils/events'
-import { getDecisionById } from '../services/dynamodb'
 import { log } from '../utils/logging'
 import status from '../utils/status'
 

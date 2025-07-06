@@ -1,7 +1,7 @@
-import { DecisionObject, Session } from '../types'
 import { getChoiceById, getDecisionById, queryUserIdsBySessionId } from '../services/dynamodb'
+import { DecisionObject, Session } from '../types'
 
-const areDecisionsComplete = (choiceNames: any[], decisions: DecisionObject): boolean =>
+const areDecisionsComplete = (choiceNames: string[], decisions: DecisionObject): boolean =>
   choiceNames.every((name) => name in decisions)
 
 const intersection = (set1: string[], set2: string[]): string[] => set1.filter((value) => set2.indexOf(value) >= 0)
@@ -20,7 +20,10 @@ export const updateSessionStatus = async (sessionId: string, session: Session): 
   }
 
   const sessionChoices = await getChoiceById(session.choiceId)
-  const choiceNames = sessionChoices.choices.map((value) => value.name)
+  const choiceNames = sessionChoices.choices.reduce(
+    (acc, value) => (value.name ? [...acc, value.name] : acc),
+    [] as string[],
+  )
   const allDecisions = await Promise.all(
     decisionIds.map((userId) => getDecisionById(sessionId, userId).then((decision) => decision.decisions)),
   )

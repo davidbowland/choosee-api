@@ -1,8 +1,8 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from '../types'
-import { log, logError } from '../utils/logging'
-import { extractLatLngFromEvent } from '../utils/events'
 import { fetchAddressFromGeocode } from '../services/google-maps'
 import { getScoreFromEvent } from '../services/recaptcha'
+import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from '../types'
+import { extractLatLngFromEvent } from '../utils/events'
+import { log, logError } from '../utils/logging'
 import status from '../utils/status'
 
 export const getReverseGeocodeHandler = async (

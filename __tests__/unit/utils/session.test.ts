@@ -1,7 +1,5 @@
-import { mocked } from 'jest-mock'
-
-import * as dynamodb from '@services/dynamodb'
 import { choice, place1, session, sessionId, userId } from '../__mocks__'
+import * as dynamodb from '@services/dynamodb'
 import { updateSessionStatus } from '@utils/session'
 
 jest.mock('@services/dynamodb')
@@ -11,30 +9,31 @@ describe('sessions', () => {
   const mockRandom = jest.fn()
 
   beforeAll(() => {
-    mocked(dynamodb).getChoiceById.mockResolvedValue(choice)
-    mocked(dynamodb).getDecisionById.mockResolvedValue({ decisions: { Columbia: true } })
-    mocked(dynamodb).queryUserIdsBySessionId.mockResolvedValue(['+15551234567', '+15551234568'])
+    jest.mocked(dynamodb).getChoiceById.mockResolvedValue(choice)
+    jest.mocked(dynamodb).getDecisionById.mockResolvedValue({ decisions: { Columbia: true }, expiration: 0 })
+    jest.mocked(dynamodb).queryUserIdsBySessionId.mockResolvedValue(['+15551234567', '+15551234568'])
 
     Math.random = mockRandom.mockReturnValue(0)
   })
 
   describe('updateSessionStatus', () => {
     describe('unchanged', () => {
-      test('expect status unchanged when no users', async () => {
-        mocked(dynamodb).queryUserIdsBySessionId.mockResolvedValueOnce([])
+      it('should leave status unchanged when no users', async () => {
+        jest.mocked(dynamodb).queryUserIdsBySessionId.mockResolvedValueOnce([])
         const result = await updateSessionStatus(sessionId, session)
         expect(result).toEqual(session)
       })
 
-      test('expect status unchanged when only one voter', async () => {
-        mocked(dynamodb).queryUserIdsBySessionId.mockResolvedValueOnce([userId])
+      it('should leave status unchanged when only one voter', async () => {
+        jest.mocked(dynamodb).queryUserIdsBySessionId.mockResolvedValueOnce([userId])
         const result = await updateSessionStatus(sessionId, session)
         expect(result).toEqual(session)
       })
 
-      test('expect status unchanged when one decision matches', async () => {
-        mocked(dynamodb).getDecisionById.mockResolvedValueOnce({
+      it('should leave status unchanged when one decision matches', async () => {
+        jest.mocked(dynamodb).getDecisionById.mockResolvedValueOnce({
           decisions: { "Shakespeare's Pizza - Downtown": true },
+          expiration: 0,
         })
         const result = await updateSessionStatus(sessionId, session)
         expect(result).toEqual(session)
@@ -43,21 +42,22 @@ describe('sessions', () => {
 
     describe('winner', () => {
       beforeAll(() => {
-        mocked(dynamodb).getDecisionById.mockResolvedValue({
+        jest.mocked(dynamodb).getDecisionById.mockResolvedValue({
           decisions: {
             'Flat Branch Pub & Brewing': true,
             "Shakespeare's Pizza - Downtown": true,
           },
+          expiration: 0,
         })
       })
 
-      test('expect status changed to winner when decisions match', async () => {
+      it('should change status to winner when decisions match', async () => {
         const result = await updateSessionStatus(sessionId, session)
         expect(result).toEqual(expect.objectContaining({ status: { current: 'winner', winner: place1 } }))
       })
 
-      test('expect status changed to winner when voter count hit', async () => {
-        mocked(dynamodb).queryUserIdsBySessionId.mockResolvedValueOnce([userId])
+      it('should change status to winner when voter count hit', async () => {
+        jest.mocked(dynamodb).queryUserIdsBySessionId.mockResolvedValueOnce([userId])
         const decisionMatchSession = {
           ...session,
           voterCount: 1,
@@ -66,7 +66,7 @@ describe('sessions', () => {
         expect(result).toEqual(expect.objectContaining({ status: { current: 'winner', winner: place1 } }))
       })
 
-      test('expect winner unchanged when already winner', async () => {
+      it('should leave winner unchanged when already winner', async () => {
         const newPlace = { ...place1, name: 'Bobs Burgers' }
         const decisionMatchSession = {
           ...session,
@@ -79,20 +79,21 @@ describe('sessions', () => {
     })
 
     describe('deciding', () => {
-      test('expect deciding status when not all choices have a decision', async () => {
-        mocked(dynamodb).getDecisionById.mockResolvedValueOnce({ decisions: { Columbia: false } })
+      it('should set deciding status when not all choices have a decision', async () => {
+        jest.mocked(dynamodb).getDecisionById.mockResolvedValueOnce({ decisions: { Columbia: false }, expiration: 0 })
         const result = await updateSessionStatus(sessionId, session)
         expect(result).toEqual(expect.objectContaining({ status: { current: 'deciding' } }))
       })
     })
 
     describe('finished', () => {
-      test('expect deciding status when all choices have a decision but no matches', async () => {
-        mocked(dynamodb).getDecisionById.mockResolvedValueOnce({
+      it('should set deciding status when all choices have a decision but no matches', async () => {
+        jest.mocked(dynamodb).getDecisionById.mockResolvedValueOnce({
           decisions: {
             'Flat Branch Pub & Brewing': false,
             "Shakespeare's Pizza - Downtown": false,
           },
+          expiration: 0,
         })
         const result = await updateSessionStatus(sessionId, session)
         expect(result).toEqual(expect.objectContaining({ status: { current: 'finished' } }))

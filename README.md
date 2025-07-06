@@ -1,6 +1,6 @@
 # Lambdas for Choosee API
 
-Lambdas for choosee API, which handles sessions as a back-end for choosee-ui.
+Lambdas for Choosee API, which handles sessions as a back-end for choosee-ui.
 
 ## Setup
 
@@ -40,7 +40,7 @@ mfa_serial=<YOUR_MFA_ARN>
 region=us-east-2
 ```
 
-If necessary, retreive the ARN of the primary MFA device attached to the default profile:
+If necessary, retrieve the ARN of the primary MFA device attached to the default profile:
 
 ```bash
 aws iam list-mfa-devices --query 'MFADevices[].SerialNumber' --output text

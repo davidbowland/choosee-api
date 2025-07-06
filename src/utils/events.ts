@@ -1,18 +1,22 @@
 import AJV from 'ajv/dist/jtd'
 import jwt from 'jsonwebtoken'
 
-import { APIGatewayProxyEventV2, LatLng, NewSession, PatchOperation, StringObject } from '../types'
 import placeTypes from '../assets/place-types'
 import { sessionExpireHours } from '../config'
+import { APIGatewayProxyEventV2, LatLng, NewSession, PatchOperation } from '../types'
 
 const ajv = new AJV({ allErrors: true })
 
-// 60 minutes * 60 seconds * 1000 milliseconds = 3_600_000
-const SESSION_EXPIRATION_DURATION = sessionExpireHours * 3_600_000
+// hours * 60 minutes / hour * 60 seconds / minute = 3_600
+const SESSION_EXPIRATION_DURATION = sessionExpireHours * 3_600
+
+const getTimeInSeconds = () => Math.floor(Date.now() / 1000)
 
 /* Sessions */
 
 export const formatSession = (session: NewSession): NewSession => {
+  const placeTypeValues = placeTypes.map((t) => t.value)
+
   const jsonTypeDefinition = {
     optionalProperties: {
       expiration: { type: 'float64' },
@@ -21,14 +25,14 @@ export const formatSession = (session: NewSession): NewSession => {
     },
     properties: {
       address: { type: 'string' },
-      exclude: { elements: { enum: placeTypes } },
-      radius: { type: 'uint32' },
+      exclude: { elements: { enum: placeTypeValues } },
+      radius: { type: 'float64' },
       rankBy: { enum: ['DISTANCE', 'POPULARITY'] },
-      type: { elements: { enum: placeTypes } },
+      type: { elements: { enum: placeTypeValues } },
       voterCount: { type: 'uint32' },
     },
   }
-  const lastExpiration = new Date().getTime() + SESSION_EXPIRATION_DURATION
+  const lastExpiration = getTimeInSeconds() + SESSION_EXPIRATION_DURATION
 
   if (ajv.validate(jsonTypeDefinition, session) === false) {
     throw new Error(JSON.stringify(ajv.errors))
@@ -100,9 +104,14 @@ export const formatSession = (session: NewSession): NewSession => {
 
 /* LatLng */
 
-export const formatLatLng = (latLng: any): LatLng => {
-  const latitude = parseFloat(latLng.latitude as string)
-  const longitude = parseFloat(latLng.longitude as string)
+interface LatLngParams {
+  latitude: number
+  longitude: number
+}
+
+export const formatLatLng = (latLng: LatLngParams): LatLng => {
+  const latitude = parseFloat(String(latLng.latitude))
+  const longitude = parseFloat(String(latLng.longitude))
   if (isNaN(latitude) || isNaN(longitude)) {
     throw new Error(JSON.stringify({ message: 'latitude and longitude query parameters must be provided' }))
   } else if (latitude < -90 || latitude > 90) {
@@ -127,13 +136,17 @@ export const extractNewSessionFromEvent = (event: APIGatewayProxyEventV2): NewSe
 export const extractJsonPatchFromEvent = (event: APIGatewayProxyEventV2): PatchOperation[] =>
   parseEventBody(event) as PatchOperation[]
 
-export const extractJwtFromEvent = (event: APIGatewayProxyEventV2): StringObject =>
-  jwt.decode(
-    (event.headers.authorization || event.headers.Authorization || '').replace(/^Bearer /i, ''),
-  ) as StringObject
+interface DecodedJWT {
+  name: string
+  phone_number?: string
+  sub: string
+}
+
+export const extractJwtFromEvent = (event: APIGatewayProxyEventV2): DecodedJWT =>
+  jwt.decode((event.headers.authorization || event.headers.Authorization || '').replace(/^Bearer /i, '')) as DecodedJWT
 
 export const extractLatLngFromEvent = (event: APIGatewayProxyEventV2): LatLng =>
-  formatLatLng(event.queryStringParameters)
+  formatLatLng(event.queryStringParameters as unknown as LatLngParams)
 
 export const extractTokenFromEvent = (event: APIGatewayProxyEventV2): string =>
   event.headers['x-recaptcha-token'] as string

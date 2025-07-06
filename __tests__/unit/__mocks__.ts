@@ -81,6 +81,7 @@ export const newChoice: NewChoice = {
 
 export const decision: Decision = {
   decisions: { "Shakespeare's Pizza - Downtown": true },
+  expiration: 1728533252,
 }
 
 export const jsonPatchOperations: PatchOperation[] = [{ op: 'replace', path: '/voterCount', value: 1 }]
@@ -110,7 +111,7 @@ export const session: Session = {
 export const newSession: NewSession = {
   address: 'Columbia, MO 65203, USA',
   exclude: ['breakfast_restaurant'],
-  expiration: 1742868571384,
+  expiration: 1742868571,
   radius: 3_757,
   rankBy: 'POPULARITY',
   type: ['restaurant'],

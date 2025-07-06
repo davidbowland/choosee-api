@@ -1,3 +1,6 @@
+import { getChoiceById, getSessionById, setChoiceById, setSessionById } from '../services/dynamodb'
+import { fetchGeocodeResults, fetchPlaceResults } from '../services/google-maps'
+import { getScoreFromEvent } from '../services/recaptcha'
 import {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
@@ -9,11 +12,8 @@ import {
   Session,
 } from '../types'
 import { extractJwtFromEvent, extractNewSessionFromEvent } from '../utils/events'
-import { fetchGeocodeResults, fetchPlaceResults } from '../services/google-maps'
-import { getChoiceById, getSessionById, setChoiceById, setSessionById } from '../services/dynamodb'
-import { log, logError } from '../utils/logging'
 import { getNextId } from '../utils/id-generator'
-import { getScoreFromEvent } from '../services/recaptcha'
+import { log, logError } from '../utils/logging'
 import status from '../utils/status'
 
 const getGeocodedAddress = async (newChoice: NewChoice): Promise<GeocodedAddress> => {
@@ -25,7 +25,13 @@ const getGeocodedAddress = async (newChoice: NewChoice): Promise<GeocodedAddress
 
 const createChoice = async (newChoice: NewChoice): Promise<APIGatewayProxyResultV2<any>> => {
   const geocodedAddress = await getGeocodedAddress(newChoice)
-  const places = await fetchPlaceResults(geocodedAddress.latLng, newChoice.type, newChoice.rankBy, newChoice.radius)
+  const places = await fetchPlaceResults(
+    geocodedAddress.latLng,
+    newChoice.type,
+    newChoice.exclude,
+    newChoice.rankBy,
+    newChoice.radius,
+  )
   log('Google API results', JSON.stringify({ geocodedAddress, places }))
 
   const choiceId = await getNextId(getChoiceById)
@@ -86,7 +92,7 @@ const createNewSession = async (newSession: NewSession, owner?: string): Promise
   }
 }
 
-export const postSessionHandler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2<any>> => {
+export const postSessionHandler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2<unknown>> => {
   try {
     const newSession = extractNewSessionFromEvent(event)
     const jwtPayload = extractJwtFromEvent(event)
@@ -113,9 +119,10 @@ export const postSessionHandlerUnauthenticated = async (
     if (score < 0.7) {
       return status.FORBIDDEN
     }
+
+    return await postSessionHandler(event)
   } catch (error) {
+    logError(error)
     return status.INTERNAL_SERVER_ERROR
   }
-
-  return await postSessionHandler(event)
 }

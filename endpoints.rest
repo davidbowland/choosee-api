@@ -1,0 +1,80 @@
+### Get choice by ID
+
+GET https://{{choosee-api-host}}/v1/choices/abc123 HTTP/1.1
+
+### Get decisions by ID
+
+GET https://{{choosee-api-host}}/v1/sessions/abc123/decisions/+15551234567 HTTP/1.1
+Authorization: Bearer {{choosee-api-jwt}}
+
+### Patch decision by ID
+
+PATCH https://{{choosee-api-host}}/v1/sessions/abc123/decisions/+15551234567 HTTP/1.1
+content-type: application/json
+
+[
+  { "op": "replace", "path": "/decisions/Restaurant Name", "value": true }
+]
+
+### Get session by ID
+
+GET https://{{choosee-api-host}}/v1/sessions/abc123 HTTP/1.1
+
+### Patch session
+
+PATCH https://{{choosee-api-host}}/v1/sessions/abc123 HTTP/1.1
+content-type: application/json
+Authorization: Bearer {{choosee-api-jwt}}
+
+[
+  { "op": "replace", "path": "/status", "value": "COMPLETE" }
+]
+
+### Create session (unauthenticated)
+
+POST https://{{choosee-api-host}}/v1/sessions HTTP/1.1
+content-type: application/json
+x-recaptcha-token: {{choosee-api-recaptcha-token}}
+
+{
+  "address": "Columbia, MO 65203, USA",
+  "exclude": ["breakfast_restaurant"],
+  "radius": 3757,
+  "rankBy": "POPULARITY",
+  "type": ["restaurant"],
+  "voterCount": 2
+}
+
+### Create session (authenticated)
+
+POST https://{{choosee-api-host}}/v1/sessions/authed HTTP/1.1
+content-type: application/json
+Authorization: Bearer {{choosee-api-jwt}}
+
+{
+  "address": "Columbia, MO 65203, USA",
+  "exclude": ["breakfast_restaurant"],
+  "radius": 3757,
+  "rankBy": "POPULARITY",
+  "type": ["restaurant"],
+  "voterCount": 2
+}
+
+### Send text to user
+
+POST https://{{choosee-api-host}}/v1/sessions/abc123/send-text/+15551234567 HTTP/1.1
+Authorization: Bearer {{choosee-api-jwt}}
+
+### Get reverse geocode (unauthenticated)
+
+GET https://{{choosee-api-host}}/v1/reverse-geocode?latitude=38.897957&longitude=-77.03656 HTTP/1.1
+x-recaptcha-token: {{choosee-api-recaptcha-token}}
+
+### Get reverse geocode (authenticated)
+
+GET https://{{choosee-api-host}}/v1/reverse-geocode/authed?latitude=38.897957&longitude=-77.03656 HTTP/1.1
+Authorization: Bearer {{choosee-api-jwt}}
+
+### Get place types
+
+GET https://{{choosee-api-host}}/v1/places/types HTTP/1.1

@@ -50,6 +50,7 @@ export interface DecisionObject {
 
 export interface Decision {
   decisions: DecisionObject
+  expiration: number
 }
 
 // Sessions
@@ -108,7 +109,11 @@ export interface PlaceResponse {
 }
 
 export interface PlaceTypeDisplay {
+  canBeExcluded?: boolean
+  defaultExclude?: boolean
+  defaultType?: boolean
   display: string
+  mustBeSingleType?: boolean
   value: PlaceType
 }
 
@@ -130,9 +135,4 @@ export interface SMSMessage {
   to: string
   contents: string
   messageType?: MessageType
-}
-
-// Misc
-export interface StringObject {
-  [key: string]: any
 }

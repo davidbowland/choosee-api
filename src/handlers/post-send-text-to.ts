@@ -1,8 +1,8 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from '../types'
-import { log, logError } from '../utils/logging'
 import { corsDomain } from '../config'
-import { extractJwtFromEvent } from '../utils/events'
 import { sendSms } from '../services/sms'
+import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from '../types'
+import { extractJwtFromEvent } from '../utils/events'
+import { log, logError } from '../utils/logging'
 import status from '../utils/status'
 
 export const postSendTextToHandler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2<any>> => {
