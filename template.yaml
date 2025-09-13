@@ -179,7 +179,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-choice-by-id.ts
@@ -252,7 +252,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-decisions-by-id.ts
@@ -330,7 +330,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/patch-decisions-by-id.ts
@@ -403,7 +403,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-session-by-id.ts
@@ -474,7 +474,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/patch-session.ts
@@ -556,7 +556,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/post-session.ts
@@ -638,7 +638,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/post-session.ts
@@ -704,7 +704,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/post-send-text-to.ts
@@ -776,7 +776,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-reverse-geocode.ts
@@ -846,7 +846,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-reverse-geocode.ts
@@ -916,7 +916,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2020'
+        Target: 'es2023'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-place-types.ts
