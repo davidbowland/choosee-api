@@ -1,11 +1,11 @@
-import AJV from 'ajv/dist/jtd'
+import Ajv from 'ajv'
 import jwt from 'jsonwebtoken'
 
 import placeTypes from '../assets/place-types'
 import { sessionExpireHours } from '../config'
 import { APIGatewayProxyEventV2, LatLng, NewSession, PatchOperation } from '../types'
 
-const ajv = new AJV({ allErrors: true })
+const ajv = new Ajv({ allErrors: true })
 
 // hours * 60 minutes / hour * 60 seconds / minute = 3_600
 const SESSION_EXPIRATION_DURATION = sessionExpireHours * 3_600
@@ -17,24 +17,31 @@ const getTimeInSeconds = () => Math.floor(Date.now() / 1000)
 export const formatSession = (session: NewSession): NewSession => {
   const placeTypeValues = placeTypes.map((t) => t.value)
 
-  const jsonTypeDefinition = {
-    optionalProperties: {
-      expiration: { type: 'float64' },
-      latitude: { type: 'float64' },
-      longitude: { type: 'float64' },
-    },
+  const jsonSchema = {
+    additionalProperties: false,
     properties: {
       address: { type: 'string' },
-      exclude: { elements: { enum: placeTypeValues } },
-      radius: { type: 'float64' },
+      exclude: {
+        items: { enum: placeTypeValues },
+        type: 'array',
+      },
+      expiration: { type: 'number' },
+      latitude: { type: 'number' },
+      longitude: { type: 'number' },
+      radius: { type: 'number' },
       rankBy: { enum: ['DISTANCE', 'POPULARITY'] },
-      type: { elements: { enum: placeTypeValues } },
-      voterCount: { type: 'uint32' },
+      type: {
+        items: { enum: placeTypeValues },
+        type: 'array',
+      },
+      voterCount: { maximum: 10, minimum: 1, type: 'integer' },
     },
+    required: ['address', 'exclude', 'radius', 'rankBy', 'type', 'voterCount'],
+    type: 'object',
   }
   const lastExpiration = getTimeInSeconds() + SESSION_EXPIRATION_DURATION
 
-  if (ajv.validate(jsonTypeDefinition, session) === false) {
+  if (ajv.validate(jsonSchema, session) === false) {
     throw new Error(JSON.stringify(ajv.errors))
   } else if ((session.expiration ?? 0) > lastExpiration) {
     throw new Error(
