@@ -139,7 +139,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/get-choice-by-id.getChoiceByIdHandler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 2048
@@ -179,7 +179,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-choice-by-id.ts
@@ -212,7 +212,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/get-decisions-by-id.getDecisionsByIdHandler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 1536
@@ -252,7 +252,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-decisions-by-id.ts
@@ -283,7 +283,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/patch-decisions-by-id.patchDecisionByIdHandler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 1536
@@ -330,7 +330,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/patch-decisions-by-id.ts
@@ -363,7 +363,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/get-session-by-id.getSessionByIdHandler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 1536
@@ -403,7 +403,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-session-by-id.ts
@@ -434,7 +434,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/patch-session.patchSessionHandler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 512
@@ -474,7 +474,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/patch-session.ts
@@ -505,7 +505,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/post-session.postSessionHandlerUnauthenticated
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 512
@@ -556,7 +556,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/post-session.ts
@@ -587,7 +587,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/post-session.postSessionHandlerAuthenticated
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 512
@@ -638,7 +638,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/post-session.ts
@@ -671,7 +671,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/post-send-text-to.postSendTextToHandler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 1536
@@ -704,7 +704,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/post-send-text-to.ts
@@ -737,7 +737,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/get-reverse-geocode.getReverseGeocodeHandlerUnauthenticated
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 1024
@@ -776,7 +776,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-reverse-geocode.ts
@@ -807,7 +807,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/get-reverse-geocode.getReverseGeocodeHandlerAuthenticated
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 1024
@@ -846,7 +846,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-reverse-geocode.ts
@@ -879,7 +879,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: src/handlers/get-place-types.getPlaceTypesHandler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       Architectures:
         - x86_64
       MemorySize: 1024
@@ -916,7 +916,7 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        Target: 'es2023'
+        Target: 'es2024'
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-place-types.ts
