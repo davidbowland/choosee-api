@@ -47,7 +47,7 @@ jobs:
 
   build-and-deploy-feature:
     name: Deploy feature branch
-    if: github.ref != 'refs/heads/master'
+    if: github.ref == 'refs/heads/master'
     needs: [test]
     runs-on: ubuntu-latest
     steps:
@@ -92,7 +92,7 @@ jobs:
 
   build-and-package:
     name: Build and package lambda
-    if: github.ref == 'refs/heads/master'
+    if: github.ref != 'refs/heads/master'
     needs: [test]
     runs-on: ubuntu-latest
     steps:
@@ -162,7 +162,7 @@ jobs:
 
   deploy-testing:
     name: Deploy to test
-    if: github.ref == 'refs/heads/master'
+    if: github.ref != 'refs/heads/master'
     needs: [build-and-package]
     runs-on: ubuntu-latest
     steps:
@@ -203,7 +203,7 @@ jobs:
 
   deploy-prod:
     name: Deploy to production
-    if: github.ref == 'refs/heads/master'
+    if: github.ref != 'refs/heads/master'
     needs: [deploy-testing]
     runs-on: ubuntu-latest
     steps:

@@ -1006,7 +1006,7 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: Expiration
         Enabled: true
-      TableName: !FindInMap [EnvironmentMap, !Ref Environment, sessionTable]
+      # TableName: !FindInMap [EnvironmentMap, !Ref Environment, sessionTable]
       Tags:
         - Key: 'created-by'
           Value: 'choosee-api'
