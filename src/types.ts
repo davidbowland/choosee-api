@@ -1,7 +1,7 @@
-export * from 'aws-lambda'
+export { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda'
 export { Operation as PatchOperation } from 'fast-json-patch'
-export * from '@googlemaps/google-maps-services-js'
-export * from '@googlemaps/places'
+
+// Enums and simple types
 
 export type PriceLevel =
   | 'PRICE_LEVEL_UNSPECIFIED'
@@ -11,84 +11,15 @@ export type PriceLevel =
   | 'PRICE_LEVEL_EXPENSIVE'
   | 'PRICE_LEVEL_VERY_EXPENSIVE'
 
-export type RankByType = 'DISTANCE' | 'POPULARITY'
+export type GoogleRankBy = 'DISTANCE' | 'POPULARITY'
+export type RankByType = GoogleRankBy | 'ALL'
 
-// Choices
-
-export interface Choice {
-  address: string
-  choices: PlaceDetails[]
-  exclude: PlaceType[]
-  expiration: number
-  latLng: LatLng
-  radius: number
-  rankBy: RankByType
-  type: PlaceType[]
+export interface LatLng {
+  latitude: number
+  longitude: number
 }
 
-export interface ChoiceBatch {
-  data: Choice
-  id: string
-}
-
-export interface NewChoice {
-  address: string
-  exclude: PlaceType[]
-  expiration?: number
-  latitude?: number
-  longitude?: number
-  radius: number
-  rankBy: RankByType
-  type: PlaceType[]
-}
-
-// Decisions
-
-export interface DecisionObject {
-  [key: string]: boolean
-}
-
-export interface Decision {
-  decisions: DecisionObject
-  expiration: number
-}
-
-// Sessions
-
-export interface Session {
-  address: string
-  choiceId: string
-  exclude: PlaceType[]
-  expiration: number
-  location: LatLng
-  owner?: string
-  radius: number
-  rankBy: RankByType
-  status: StatusObject
-  type: PlaceType[]
-  voterCount: number
-}
-
-export interface NewSession {
-  address: string
-  exclude: PlaceType[]
-  expiration?: number
-  latitude?: number
-  longitude?: number
-  radius: number
-  rankBy: RankByType
-  type: PlaceType[]
-  voterCount: number
-}
-
-export interface StatusObject {
-  current: 'deciding' | 'winner' | 'finished'
-  winner?: PlaceDetails
-}
-
-// Places
-
-export type PlaceType = string
+// Place types
 
 export interface PlaceDetails {
   formattedAddress?: string | null
@@ -101,11 +32,8 @@ export interface PlaceDetails {
   priceLevel?: PriceLevel | null
   rating?: number | null
   ratingsTotal?: number | null
+  placeTypes?: string[] | null
   website?: string | null
-}
-
-export interface PlaceResponse {
-  data: PlaceDetails[]
 }
 
 export interface PlaceTypeDisplay {
@@ -114,17 +42,116 @@ export interface PlaceTypeDisplay {
   defaultType?: boolean
   display: string
   mustBeSingleType?: boolean
-  value: PlaceType
-}
-
-export interface LatLng {
-  latitude: number
-  longitude: number
+  value: string
 }
 
 export interface GeocodedAddress {
   address: string
   latLng: LatLng
+}
+
+// DynamoDB record types — single-table design
+// PlaceDetails (above) represents raw Google API responses where fields can be null.
+// ChoiceDetail (below) represents cleaned restaurant data stored in DynamoDB after null-stripping.
+
+export interface SessionRecord {
+  sessionId: string
+  address: string
+  location: LatLng | null
+  currentRound: number
+  bracket: [string, string][][]
+  byes: (string | null)[]
+  isReady: boolean
+  errorMessage: string | null
+  timeoutAt: number | undefined
+  winner: string | null
+  expiration: number
+  type: string[]
+  exclude: string[]
+  radius: number
+  rankBy: RankByType
+  totalRounds: number
+  votersSubmitted: number
+}
+
+export interface VersionedSession {
+  session: SessionRecord
+  users: string[]
+  version: number
+}
+
+export interface ChoicesRecord {
+  choices: Record<string, ChoiceDetail>
+  expiration: number
+}
+
+export interface ChoiceDetail {
+  choiceId: string
+  name: string
+  formattedAddress?: string
+  formattedPhoneNumber?: string
+  internationalPhoneNumber?: string
+  priceLevel?: PriceLevel
+  rating?: number
+  ratingsTotal?: number
+  photos: string[]
+  openHours?: string[]
+  placeTypes: string[]
+  website?: string
+}
+
+export interface UserRecord {
+  userId: string
+  name: string | null
+  phone: string | null
+  subscribedRounds: number[]
+  votes: (string | null)[][]
+  textsSent: number
+  expiration: number
+}
+
+// Input types
+
+export interface SortOption {
+  value: RankByType
+  label: string
+  description: string
+}
+
+export interface RadiusConstraints {
+  defaultMiles: number
+  minMiles: number
+  maxMiles: number
+}
+
+export interface SessionConfig {
+  placeTypes: PlaceTypeDisplay[]
+  sortOptions: SortOption[]
+  radius: RadiusConstraints
+}
+
+export interface NewSessionInput {
+  address: string
+  type: string[]
+  exclude: string[]
+  radiusMiles: number
+  rankBy: RankByType
+  latitude?: number
+  longitude?: number
+}
+
+export interface ShareInput {
+  phone: string
+  type: 'text'
+}
+
+export interface SubscribeInput {
+  userId: string
+  roundId: number
+}
+
+export interface CloseRoundInput {
+  roundId: number
 }
 
 // SMS

@@ -5,22 +5,9 @@ import axiosRetry from 'axios-retry'
 
 axiosRetry(axios, { retries: 3 })
 
-// Cognito
-
-export const userPoolId = process.env.USER_POOL_ID as string
-
-// Choices
-
-export const choiceidMaxLength = parseInt(process.env.ID_MAX_LENGTH as string, 10)
-export const choiceidMinLength = parseInt(process.env.ID_MIN_LENGTH as string, 10)
-
 // DynamoDB
 
-export const dynamodbChoicesTable = process.env.DYNAMODB_CHOICES_TABLE_NAME as string
-export const dynamodbDecisionsTableName = process.env.DYNAMODB_DECISIONS_TABLE_NAME as string
-export const dynamodbSessionsTableName = process.env.DYNAMODB_SESSIONS_TABLE_NAME as string
-
-export const decisionExpireHours = parseInt(process.env.DECISION_EXPIRE_HOURS as string, 10)
+export const dynamodbTableName = process.env.DYNAMODB_TABLE_NAME as string
 export const sessionExpireHours = parseInt(process.env.SESSION_EXPIRE_HOURS as string, 10)
 
 // Google
@@ -31,18 +18,26 @@ export const googleImageMaxHeight = parseInt(process.env.GOOGLE_IMAGE_MAX_HEIGHT
 export const googleImageMaxWidth = parseInt(process.env.GOOGLE_IMAGE_MAX_WIDTH as string, 10)
 export const googleTimeoutMs = 2500
 
-// ID generator
+// Session
 
-export const idMaxLength = parseInt(process.env.ID_MAX_LENGTH as string, 10)
-export const idMinLength = parseInt(process.env.ID_MIN_LENGTH as string, 10)
+export const maxUsersPerSession = parseInt(process.env.MAX_USERS_PER_SESSION as string, 10)
+export const createSessionFunctionName = process.env.CREATE_SESSION_FUNCTION_NAME as string
+export const createSessionTimeoutMs = parseInt(process.env.CREATE_SESSION_TIMEOUT_MS as string, 10)
 
-// JsonPatch
+// reCAPTCHA
 
-export const mutateObjectOnJsonPatch = false
-export const throwOnInvalidJsonPatch = true
+export const recaptchaSecretKey = process.env.RECAPTCHA_SECRET_KEY as string
 
-// SMS Queue API
+// Radius
+
+export const radiusMinMiles = parseInt(process.env.RADIUS_MIN_MILES as string, 10)
+export const radiusMaxMiles = parseInt(process.env.RADIUS_MAX_MILES as string, 10)
+export const radiusDefaultMiles = parseInt(process.env.RADIUS_DEFAULT_MILES as string, 10)
+export const metersPerMile = 1609.34
+
+// SMS
 
 export const corsDomain = process.env.CORS_DOMAIN as string
 export const smsApiKey = process.env.SMS_API_KEY as string
 export const smsApiUrl = process.env.SMS_API_URL as string
+export const smsRateLimitPerUser = parseInt(process.env.SMS_RATE_LIMIT_PER_USER as string, 10)

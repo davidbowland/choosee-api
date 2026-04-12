@@ -1,32 +1,67 @@
-import { session } from '../__mocks__'
-import { getNextId } from '@utils/id-generator'
-
-jest.mock('@services/dynamodb')
+import { adjectives } from '@assets/adjectives'
+import { nouns } from '@assets/nouns'
+import { generateUserId } from '@utils/id-generator'
 
 describe('id-generator', () => {
-  const mockGetById = jest.fn()
   const mockRandom = jest.fn()
 
   beforeAll(() => {
-    Math.random = mockRandom.mockReturnValue(0.5)
+    jest.spyOn(Math, 'random').mockImplementation(mockRandom)
   })
 
-  describe('getNextId', () => {
-    beforeAll(() => {
-      mockGetById.mockRejectedValue(undefined)
+  afterAll(() => {
+    jest.restoreAllMocks()
+  })
+
+  beforeEach(() => {
+    mockRandom.mockReturnValue(0.5)
+  })
+
+  describe('generateUserId', () => {
+    it('should return an adjective-noun formatted ID', () => {
+      const id = generateUserId([])
+      const [adj, noun] = id.split('-')
+      expect(adjectives).toContain(adj)
+      expect(nouns).toContain(noun)
     })
 
-    it('should return generated ID when ID does not exist', async () => {
-      const result = await getNextId(mockGetById)
-      expect(result).toEqual('j2j2')
+    it('should return an ID not in the existing list', () => {
+      const id = generateUserId(['fuzzy-penguin', 'bold-castle'])
+      expect(id).not.toBe('fuzzy-penguin')
+      expect(id).not.toBe('bold-castle')
     })
 
-    it('should generate a different ID when first ID already exists', async () => {
-      mockGetById.mockResolvedValueOnce(session)
-      mockRandom.mockReturnValueOnce(0.5)
-      mockRandom.mockReturnValueOnce(0.25)
-      const result = await getNextId(mockGetById)
-      expect(result).toEqual('b2s2')
+    it('should retry on collision and return a unique ID', () => {
+      mockRandom
+        .mockReturnValueOnce(0) // adjective index 0
+        .mockReturnValueOnce(0) // noun index 0
+        .mockReturnValueOnce(1 / adjectives.length) // adjective index 1
+        .mockReturnValueOnce(1 / nouns.length) // noun index 1
+
+      const collidingId = `${adjectives[0]}-${nouns[0]}`
+      const id = generateUserId([collidingId])
+
+      expect(id).not.toBe(collidingId)
+      expect(id.split('-')).toHaveLength(2)
+    })
+
+    it('should throw after maxRetries exhausted', () => {
+      mockRandom.mockReturnValue(0)
+
+      const collidingId = `${adjectives[0]}-${nouns[0]}`
+      expect(() => generateUserId([collidingId], 3)).toThrow('Failed to generate a unique user ID')
+    })
+
+    it('should respect custom maxRetries', () => {
+      mockRandom.mockReturnValue(0)
+
+      const collidingId = `${adjectives[0]}-${nouns[0]}`
+      expect(() => generateUserId([collidingId], 1)).toThrow()
+    })
+
+    it('should succeed on first try with empty existing list', () => {
+      const id = generateUserId([])
+      expect(id).toMatch(/^.+-.+$/)
     })
   })
 })

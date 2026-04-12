@@ -28,13 +28,11 @@ Mappings:
     prod:
       certificateEdge: adce1a21-90b4-4120-8548-111215e582f0
       certificateRegional: 5d4db894-c9fc-42ca-8f80-3c5da6c1678e
-      choicesTable: choosee-api-choices
       corsDomain: https://choosee.dbowland.com
-      decisionTable: choosee-api-decisions
       domain: choosee-api.dbowland.com
       domainInternal: choosee-api-internal.dbowland.com
       logStreamFunction: log-subscriber
-      sessionTable: choosee-api-sessions
+      sessionsTable: choosee-api-sessions
       smsApiUrl: https://sms-queue-api.dbowland.com/v1
       userPool: us-east-2_HTQbsxXaj
       userPoolClient: gd98upqar0ovh3bktvno6dng9
@@ -42,17 +40,29 @@ Mappings:
     test:
       certificateEdge: 6a48cba7-feb9-4de5-8cbf-d383140fcdef
       certificateRegional: 14a32175-0c26-4768-b71f-3fa611b8f5a2
-      choicesTable: choosee-api-choices-test
       corsDomain: https://choosee.bowland.link
-      decisionTable: choosee-api-decisions-test
       domain: choosee-api.bowland.link
       domainInternal: choosee-api-internal.bowland.link
       logStreamFunction: log-subscriber-test
-      sessionTable: choosee-api-sessions-test
+      sessionsTable: choosee-api-sessions-test
       smsApiUrl: https://sms-queue-api.bowland.link/v1
       userPool: us-east-2_xqxzyIOz4
       userPoolClient: 135qlssf7st66v1vl5dtopfeks
       zoneId: Z01312547RGU1BYKIJXY
+
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Architectures:
+      - x86_64
+    Tracing: Active
+    Tags:
+      'created-by': 'choosee-api'
+      'created-for': 'choosee'
+      'environment': !Ref Environment
+    Environment:
+      Variables:
+        NODE_OPTIONS: '--disable-warning DEP0040'
 
 Resources:
   # API Gateway
@@ -62,7 +72,7 @@ Resources:
     Properties:
       StageName: v1
       Auth:
-        ApiKeyRequired: true # sets for all methods
+        ApiKeyRequired: true
         UsagePlan:
           CreateUsagePlan: PER_API
           Description: Usage plan for choosee-api
@@ -120,7 +130,6 @@ Resources:
       FailOnWarnings: true
       StageName: v1
 
-  # SAM won't create two Route53 records, so the HttpApi domain name is created separately
   HttpRecordSet:
     Type: AWS::Route53::RecordSet
     Properties:
@@ -133,199 +142,168 @@ Resources:
 
   # Lambda
 
-  ## Choices
+  ## Sessions
 
-  GetChoiceByIdFunction:
+  PostSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/get-choice-by-id.getChoiceByIdHandler
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
-      MemorySize: 2048
-      Description: choosee-api get by ID
+      Handler: src/handlers/post-session.handler
+      MemorySize: 512
+      Description: choosee-api post session (unauthenticated)
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBReadPolicy:
-            TableName: !Ref ChoicesTable
-      Environment:
-        Variables:
-          DYNAMODB_CHOICES_TABLE_NAME: !Ref ChoicesTable
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
-      Events:
-        ApiKey:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /choices/{choiceId}
-            Method: get
-            Auth:
-              ApiKeyRequired: true
-        Http:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /choices/{choiceId}
-            Method: get
-            Auth:
-              Authorizer: NONE
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 10
-      Tracing: Active
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: 'es2024'
-        Sourcemap: true
-        EntryPoints:
-          - src/handlers/get-choice-by-id.ts
-
-  GetChoiceByIdLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${GetChoiceByIdFunction}
-      RetentionInDays: 30
-      Tags:
-        - Key: 'created-by'
-          Value: 'choosee-api'
-        - Key: 'created-for'
-          Value: 'choosee'
-        - Key: 'environment'
-          Value: !Ref Environment
-
-  GetChoiceByIdLogGroupSubscription:
-    Type: AWS::Logs::SubscriptionFilter
-    Properties:
-      DestinationArn: !Sub
-        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
-        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
-      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref GetChoiceByIdLogGroup
-
-  ## Decisions
-
-  GetDecisionsByIdFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/get-decisions-by-id.getDecisionsByIdHandler
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
-      MemorySize: 1536
-      Description: choosee-api get decisions by ID
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - DynamoDBReadPolicy:
-            TableName: !Ref DecisionsTable
-      Environment:
-        Variables:
-          DYNAMODB_DECISIONS_TABLE_NAME: !Ref DecisionsTable
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
-      Events:
-        ApiKey:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /sessions/{sessionId}/decisions/{userId}
-            Method: get
-            Auth:
-              ApiKeyRequired: true
-        Http:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /sessions/{sessionId}/decisions/{userId}
-            Method: get
-            Auth:
-              Authorizer: NONE
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 10
-      Tracing: Active
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: 'es2024'
-        Sourcemap: true
-        EntryPoints:
-          - src/handlers/get-decisions-by-id.ts
-
-  GetDecisionsByIdLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${GetDecisionsByIdFunction}
-      RetentionInDays: 30
-      Tags:
-        - Key: 'created-by'
-          Value: 'choosee-api'
-        - Key: 'created-for'
-          Value: 'choosee'
-        - Key: 'environment'
-          Value: !Ref Environment
-
-  GetDecisionsByIdLogGroupSubscription:
-    Type: AWS::Logs::SubscriptionFilter
-    Properties:
-      DestinationArn: !Sub
-        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
-        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
-      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref GetDecisionsByIdLogGroup
-
-  PatchDecisionFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: src/handlers/patch-decisions-by-id.patchDecisionByIdHandler
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
-      MemorySize: 1536
-      Description: choosee-api patch item
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - DynamoDBReadPolicy:
-            TableName: !Ref ChoicesTable
         - DynamoDBCrudPolicy:
-            TableName: !Ref DecisionsTable
+            TableName: !Ref SessionsTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CreateSessionFunction
+      Environment:
+        Variables:
+          CREATE_SESSION_FUNCTION_NAME: !Ref CreateSessionFunction
+          CREATE_SESSION_TIMEOUT_MS: '80000'
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
+          RADIUS_MIN_MILES: '1'
+          RADIUS_MAX_MILES: '30'
+          RADIUS_DEFAULT_MILES: '15'
+          RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
+          SESSION_EXPIRE_HOURS: '24'
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /sessions
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sessions
+            Method: post
+            Auth:
+              Authorizer: NONE
+      Timeout: 90
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2024'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/post-session.ts
+
+  PostSessionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PostSessionFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  PostSessionLogGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref PostSessionLogGroup
+
+  PostSessionAuthedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/post-session.handler
+      MemorySize: 512
+      Description: choosee-api post session (authenticated)
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CreateSessionFunction
+      Environment:
+        Variables:
+          CREATE_SESSION_FUNCTION_NAME: !Ref CreateSessionFunction
+          CREATE_SESSION_TIMEOUT_MS: '80000'
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
+          RADIUS_MIN_MILES: '1'
+          RADIUS_MAX_MILES: '30'
+          RADIUS_DEFAULT_MILES: '15'
+          RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
+          SESSION_EXPIRE_HOURS: '24'
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /sessions/authed
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sessions/authed
+            Method: post
+            Auth:
+              Authorizer: CognitoAuthorizer
+      Timeout: 90
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2024'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/post-session.ts
+
+  PostSessionAuthedLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PostSessionAuthedFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  PostSessionAuthedLogGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref PostSessionAuthedLogGroup
+
+  CreateSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/create-session.handler
+      MemorySize: 2048
+      Description: choosee-api async session creation (Google Places lookup)
+      Policies:
+        - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
             TableName: !Ref SessionsTable
       Environment:
         Variables:
-          DECISION_EXPIRE_HOURS: 24
-          DYNAMODB_CHOICES_TABLE_NAME: !Ref ChoicesTable
-          DYNAMODB_DECISIONS_TABLE_NAME: !Ref DecisionsTable
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
-      Events:
-        ApiKey:
-          Type: Api
-          Properties:
-            RestApiId: !Ref Api
-            Path: /sessions/{sessionId}/decisions/{userId}
-            Method: patch
-            Auth:
-              ApiKeyRequired: true
-        Http:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /sessions/{sessionId}/decisions/{userId}
-            Method: patch
-            Auth:
-              Authorizer: NONE
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 60
-      Tracing: Active
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
+          GOOGLE_API_KEY: !Ref GoogleApiKey
+          GOOGLE_IMAGE_COUNT: '5'
+          GOOGLE_IMAGE_MAX_HEIGHT: '300'
+          GOOGLE_IMAGE_MAX_WIDTH: '400'
+      Timeout: 90
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -333,12 +311,12 @@ Resources:
         Target: 'es2024'
         Sourcemap: true
         EntryPoints:
-          - src/handlers/patch-decisions-by-id.ts
+          - src/handlers/create-session.ts
 
-  PatchDecisionLogGroup:
+  CreateSessionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${PatchDecisionFunction}
+      LogGroupName: !Sub /aws/lambda/${CreateSessionFunction}
       RetentionInDays: 30
       Tags:
         - Key: 'created-by'
@@ -348,34 +326,28 @@ Resources:
         - Key: 'environment'
           Value: !Ref Environment
 
-  PatchDecisionGroupSubscription:
+  CreateSessionLogGroupSubscription:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       DestinationArn: !Sub
         - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref PatchDecisionLogGroup
-
-  ## Sessions
+      LogGroupName: !Ref CreateSessionLogGroup
 
   GetSessionByIdFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/get-session-by-id.getSessionByIdHandler
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
+      Handler: src/handlers/get-session-by-id.handler
       MemorySize: 1536
-      Description: choosee-api get by ID
+      Description: choosee-api get session by ID
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBReadPolicy:
             TableName: !Ref SessionsTable
       Environment:
         Variables:
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
       Events:
         ApiKey:
           Type: Api
@@ -393,12 +365,7 @@ Resources:
             Method: get
             Auth:
               Authorizer: NONE
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
       Timeout: 10
-      Tracing: Active
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -430,46 +397,39 @@ Resources:
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
       LogGroupName: !Ref GetSessionByIdLogGroup
 
-  PatchSessionFunction:
+  ## Choices
+
+  GetChoicesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/patch-session.patchSessionHandler
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
-      MemorySize: 512
-      Description: choosee-api patch item
+      Handler: src/handlers/get-choices.handler
+      MemorySize: 2048
+      Description: choosee-api get choices for session
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
+        - DynamoDBReadPolicy:
             TableName: !Ref SessionsTable
       Environment:
         Variables:
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
       Events:
         ApiKey:
           Type: Api
           Properties:
             RestApiId: !Ref Api
-            Path: /sessions/{sessionId}
-            Method: patch
+            Path: /sessions/{sessionId}/choices
+            Method: get
             Auth:
               ApiKeyRequired: true
         Http:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /sessions/{sessionId}
-            Method: patch
+            Path: /sessions/{sessionId}/choices
+            Method: get
             Auth:
-              Authorizer: CognitoAuthorizer
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 15
-      Tracing: Active
+              Authorizer: NONE
+      Timeout: 10
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -477,12 +437,12 @@ Resources:
         Target: 'es2024'
         Sourcemap: true
         EntryPoints:
-          - src/handlers/patch-session.ts
+          - src/handlers/get-choices.ts
 
-  PatchSessionLogGroup:
+  GetChoicesLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${PatchSessionFunction}
+      LogGroupName: !Sub /aws/lambda/${GetChoicesFunction}
       RetentionInDays: 30
       Tags:
         - Key: 'created-by'
@@ -492,49 +452,99 @@ Resources:
         - Key: 'environment'
           Value: !Ref Environment
 
-  PatchSessionGroupSubscription:
+  GetChoicesLogGroupSubscription:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       DestinationArn: !Sub
         - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref PatchSessionLogGroup
+      LogGroupName: !Ref GetChoicesLogGroup
 
-  PostSessionFunction:
+  ## Users
+
+  GetUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/post-session.postSessionHandlerUnauthenticated
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
-      MemorySize: 512
-      Description: choosee-api post item
+      Handler: src/handlers/get-users.handler
+      MemorySize: 1536
+      Description: choosee-api get users for session
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ChoicesTable
-        - DynamoDBCrudPolicy:
+        - DynamoDBReadPolicy:
             TableName: !Ref SessionsTable
       Environment:
         Variables:
-          DYNAMODB_CHOICES_TABLE_NAME: !Ref ChoicesTable
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-          GOOGLE_API_KEY: !Ref GoogleApiKey
-          GOOGLE_IMAGE_COUNT: 5
-          GOOGLE_IMAGE_MAX_HEIGHT: 300
-          GOOGLE_IMAGE_MAX_WIDTH: 400
-          ID_MAX_LENGTH: 4
-          ID_MIN_LENGTH: 3
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
-          RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
-          SESSION_EXPIRE_HOURS: 24
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
       Events:
         ApiKey:
           Type: Api
           Properties:
             RestApiId: !Ref Api
-            Path: /sessions
+            Path: /sessions/{sessionId}/users
+            Method: get
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sessions/{sessionId}/users
+            Method: get
+            Auth:
+              Authorizer: NONE
+      Timeout: 10
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2024'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/get-users.ts
+
+  GetUsersLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${GetUsersFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  GetUsersLogGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref GetUsersLogGroup
+
+  PostUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/post-user.handler
+      MemorySize: 512
+      Description: choosee-api create user in session
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
+          MAX_USERS_PER_SESSION: '20'
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /sessions/{sessionId}/users
             Method: post
             Auth:
               ApiKeyRequired: true
@@ -542,16 +552,11 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /sessions
+            Path: /sessions/{sessionId}/users
             Method: post
             Auth:
               Authorizer: NONE
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 90
-      Tracing: Active
+      Timeout: 15
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -559,12 +564,12 @@ Resources:
         Target: 'es2024'
         Sourcemap: true
         EntryPoints:
-          - src/handlers/post-session.ts
+          - src/handlers/post-user.ts
 
-  PostSessionLogGroup:
+  PostUserLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${PostSessionFunction}
+      LogGroupName: !Sub /aws/lambda/${PostUserFunction}
       RetentionInDays: 30
       Tags:
         - Key: 'created-by'
@@ -574,49 +579,104 @@ Resources:
         - Key: 'environment'
           Value: !Ref Environment
 
-  PostSessionGroupSubscription:
+  PostUserLogGroupSubscription:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       DestinationArn: !Sub
         - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref PostSessionLogGroup
+      LogGroupName: !Ref PostUserLogGroup
 
-  PostSessionAuthedFunction:
+  PatchUserFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/post-session.postSessionHandlerAuthenticated
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
-      MemorySize: 512
-      Description: choosee-api post item
+      Handler: src/handlers/patch-user.handler
+      MemorySize: 1536
+      Description: choosee-api patch user (voting)
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ChoicesTable
         - DynamoDBCrudPolicy:
             TableName: !Ref SessionsTable
       Environment:
         Variables:
-          DYNAMODB_CHOICES_TABLE_NAME: !Ref ChoicesTable
-          DYNAMODB_SESSIONS_TABLE_NAME: !Ref SessionsTable
-          GOOGLE_API_KEY: !Ref GoogleApiKey
-          GOOGLE_IMAGE_COUNT: 5
-          GOOGLE_IMAGE_MAX_HEIGHT: 300
-          GOOGLE_IMAGE_MAX_WIDTH: 400
-          ID_MAX_LENGTH: 4
-          ID_MIN_LENGTH: 3
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
-          RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
-          SESSION_EXPIRE_HOURS: 24
+          CORS_DOMAIN: !FindInMap [EnvironmentMap, !Ref Environment, corsDomain]
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
+          SMS_API_KEY: !Ref SmsApiKey
+          SMS_API_URL: !FindInMap [EnvironmentMap, !Ref Environment, smsApiUrl]
       Events:
         ApiKey:
           Type: Api
           Properties:
             RestApiId: !Ref Api
-            Path: /sessions/authed
+            Path: /sessions/{sessionId}/users/{userId}
+            Method: patch
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sessions/{sessionId}/users/{userId}
+            Method: patch
+            Auth:
+              Authorizer: NONE
+      Timeout: 60
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2024'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/patch-user.ts
+
+  PatchUserLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${PatchUserFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  PatchUserLogGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref PatchUserLogGroup
+
+  ## Rounds
+
+  CloseRoundFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/close-round.handler
+      MemorySize: 1536
+      Description: choosee-api close round and advance bracket
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+      Environment:
+        Variables:
+          CORS_DOMAIN: !FindInMap [EnvironmentMap, !Ref Environment, corsDomain]
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
+          SMS_API_KEY: !Ref SmsApiKey
+          SMS_API_URL: !FindInMap [EnvironmentMap, !Ref Environment, smsApiUrl]
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /sessions/{sessionId}/rounds/close
             Method: post
             Auth:
               ApiKeyRequired: true
@@ -624,16 +684,11 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /sessions/authed
+            Path: /sessions/{sessionId}/rounds/close
             Method: post
             Auth:
-              Authorizer: CognitoAuthorizer
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 90
-      Tracing: Active
+              Authorizer: NONE
+      Timeout: 30
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -641,12 +696,12 @@ Resources:
         Target: 'es2024'
         Sourcemap: true
         EntryPoints:
-          - src/handlers/post-session.ts
+          - src/handlers/close-round.ts
 
-  PostSessionAuthedLogGroup:
+  CloseRoundLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${PostSessionAuthedFunction}
+      LogGroupName: !Sub /aws/lambda/${CloseRoundFunction}
       RetentionInDays: 30
       Tags:
         - Key: 'created-by'
@@ -656,50 +711,107 @@ Resources:
         - Key: 'environment'
           Value: !Ref Environment
 
-  PostSessionAuthedGroupSubscription:
+  CloseRoundLogGroupSubscription:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       DestinationArn: !Sub
         - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref PostSessionAuthedLogGroup
+      LogGroupName: !Ref CloseRoundLogGroup
 
-  ## SMS
-
-  PostSendTextToFunction:
+  SubscribeRoundFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/post-send-text-to.postSendTextToHandler
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
-      MemorySize: 1536
-      Description: choosee-api post send text to
+      Handler: src/handlers/subscribe-round.handler
+      MemorySize: 512
+      Description: choosee-api subscribe user to round notifications
       Policies:
         - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
+      Events:
+        ApiKey:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /sessions/{sessionId}/rounds/{roundId}/subscribe
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+        Http:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /sessions/{sessionId}/rounds/{roundId}/subscribe
+            Method: post
+            Auth:
+              Authorizer: NONE
+      Timeout: 10
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: 'es2024'
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/subscribe-round.ts
+
+  SubscribeRoundLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${SubscribeRoundFunction}
+      RetentionInDays: 30
+      Tags:
+        - Key: 'created-by'
+          Value: 'choosee-api'
+        - Key: 'created-for'
+          Value: 'choosee'
+        - Key: 'environment'
+          Value: !Ref Environment
+
+  SubscribeRoundLogGroupSubscription:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      DestinationArn: !Sub
+        - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
+        - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
+      FilterPattern: '[timestamp, uuid, level="ERROR", message]'
+      LogGroupName: !Ref SubscribeRoundLogGroup
+
+  ## Share / SMS
+
+  ShareSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/share-session.handler
+      MemorySize: 1536
+      Description: choosee-api share session via SMS
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
       Environment:
         Variables:
           CORS_DOMAIN: !FindInMap [EnvironmentMap, !Ref Environment, corsDomain]
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
+          DYNAMODB_TABLE_NAME: !Ref SessionsTable
+          MAX_USERS_PER_SESSION: '20'
           SMS_API_KEY: !Ref SmsApiKey
           SMS_API_URL: !FindInMap [EnvironmentMap, !Ref Environment, smsApiUrl]
-          USER_POOL_ID: !FindInMap [EnvironmentMap, !Ref Environment, userPool]
+          SMS_RATE_LIMIT_PER_USER: '5'
       Events:
         Http:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /sessions/{sessionId}/send-text/{toUserId}
+            Path: /sessions/{sessionId}/users/{userId}/share
             Method: post
             Auth:
-              Authorizer: CognitoAuthorizer
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
-      Timeout: 10
-      Tracing: Active
+              Authorizer: NONE
+      Timeout: 15
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -707,12 +819,12 @@ Resources:
         Target: 'es2024'
         Sourcemap: true
         EntryPoints:
-          - src/handlers/post-send-text-to.ts
+          - src/handlers/share-session.ts
 
-  PostSendTextToLogGroup:
+  ShareSessionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${PostSendTextToFunction}
+      LogGroupName: !Sub /aws/lambda/${ShareSessionFunction}
       RetentionInDays: 30
       Tags:
         - Key: 'created-by'
@@ -722,32 +834,28 @@ Resources:
         - Key: 'environment'
           Value: !Ref Environment
 
-  PostSendTextToGroupSubscription:
+  ShareSessionLogGroupSubscription:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       DestinationArn: !Sub
         - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref PostSendTextToLogGroup
+      LogGroupName: !Ref ShareSessionLogGroup
 
   ## Reverse Geocode
 
   GetReverseGeocodeFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/get-reverse-geocode.getReverseGeocodeHandlerUnauthenticated
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
+      Handler: src/handlers/get-reverse-geocode.handler
       MemorySize: 1024
-      Description: choosee-api reverse geocode
+      Description: choosee-api reverse geocode (unauthenticated)
       Policies:
         - AWSLambdaBasicExecutionRole
       Environment:
         Variables:
           GOOGLE_API_KEY: !Ref GoogleApiKey
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
           RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
       Events:
         ApiKey:
@@ -766,12 +874,7 @@ Resources:
             Method: get
             Auth:
               Authorizer: NONE
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
       Timeout: 10
-      Tracing: Active
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -806,18 +909,14 @@ Resources:
   GetReverseGeocodeAuthedFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/get-reverse-geocode.getReverseGeocodeHandlerAuthenticated
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
+      Handler: src/handlers/get-reverse-geocode.handler
       MemorySize: 1024
-      Description: choosee-api reverse geocode
+      Description: choosee-api reverse geocode (authenticated)
       Policies:
         - AWSLambdaBasicExecutionRole
       Environment:
         Variables:
           GOOGLE_API_KEY: !Ref GoogleApiKey
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
           RECAPTCHA_SECRET_KEY: !Ref RecaptchaSecretKey
       Events:
         ApiKey:
@@ -836,12 +935,7 @@ Resources:
             Method: get
             Auth:
               Authorizer: CognitoAuthorizer
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
       Timeout: 10
-      Tracing: Active
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -875,26 +969,25 @@ Resources:
 
   ## Places
 
-  GetPlaceTypesFunction:
+  GetSessionConfigFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: src/handlers/get-place-types.getPlaceTypesHandler
-      Runtime: nodejs24.x
-      Architectures:
-        - x86_64
+      Handler: src/handlers/get-session-config.getSessionConfigHandler
       MemorySize: 1024
-      Description: choosee-api place types
+      Description: choosee-api session config
       Policies:
         - AWSLambdaBasicExecutionRole
       Environment:
         Variables:
-          NODE_OPTIONS: '--disable-warning DEP0040' # Disable punycode warning
+          RADIUS_MIN_MILES: '1'
+          RADIUS_MAX_MILES: '30'
+          RADIUS_DEFAULT_MILES: '15'
       Events:
         ApiKey:
           Type: Api
           Properties:
             RestApiId: !Ref Api
-            Path: /places/types
+            Path: /sessions/config
             Method: get
             Auth:
               ApiKeyRequired: true
@@ -902,16 +995,11 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HttpApi
-            Path: /places/types
+            Path: /sessions/config
             Method: get
             Auth:
               Authorizer: NONE
-      Tags:
-        'created-by': 'choosee-api'
-        'created-for': 'choosee'
-        'environment': !Ref Environment
       Timeout: 10
-      Tracing: Active
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -919,12 +1007,12 @@ Resources:
         Target: 'es2024'
         Sourcemap: true
         EntryPoints:
-          - src/handlers/get-place-types.ts
+          - src/handlers/get-session-config.ts
 
-  GetPlaceTypesLogGroup:
+  GetSessionConfigLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${GetPlaceTypesFunction}
+      LogGroupName: !Sub /aws/lambda/${GetSessionConfigFunction}
       RetentionInDays: 30
       Tags:
         - Key: 'created-by'
@@ -934,79 +1022,35 @@ Resources:
         - Key: 'environment'
           Value: !Ref Environment
 
-  GetPlaceTypesLogGroupSubscription:
+  GetSessionConfigLogGroupSubscription:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       DestinationArn: !Sub
         - 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${Function}'
         - Function: !FindInMap [EnvironmentMap, !Ref Environment, logStreamFunction]
       FilterPattern: '[timestamp, uuid, level="ERROR", message]'
-      LogGroupName: !Ref GetPlaceTypesLogGroup
+      LogGroupName: !Ref GetSessionConfigLogGroup
 
-  # DynamoDB
-
-  ChoicesTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      AttributeDefinitions:
-        - AttributeName: ChoiceId
-          AttributeType: S
-      BillingMode: PAY_PER_REQUEST
-      KeySchema:
-        - AttributeName: ChoiceId
-          KeyType: HASH
-      TimeToLiveSpecification:
-        AttributeName: Expiration
-        Enabled: true
-      TableName: !FindInMap [EnvironmentMap, !Ref Environment, choicesTable]
-      Tags:
-        - Key: 'created-by'
-          Value: 'choosee-api'
-        - Key: 'created-for'
-          Value: 'choosee'
-        - Key: 'environment'
-          Value: !Ref Environment
-
-  DecisionsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      AttributeDefinitions:
-        - AttributeName: SessionId
-          AttributeType: S
-        - AttributeName: UserId
-          AttributeType: S
-      BillingMode: PAY_PER_REQUEST
-      KeySchema:
-        - AttributeName: SessionId
-          KeyType: HASH
-        - AttributeName: UserId
-          KeyType: RANGE
-      TimeToLiveSpecification:
-        AttributeName: Expiration
-        Enabled: true
-      TableName: !FindInMap [EnvironmentMap, !Ref Environment, decisionTable]
-      Tags:
-        - Key: 'created-by'
-          Value: 'choosee-api'
-        - Key: 'created-for'
-          Value: 'choosee'
-        - Key: 'environment'
-          Value: !Ref Environment
+  # DynamoDB — Single-table design
 
   SessionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-        - AttributeName: SessionId
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
           AttributeType: S
       BillingMode: PAY_PER_REQUEST
       KeySchema:
-        - AttributeName: SessionId
+        - AttributeName: PK
           KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
       TimeToLiveSpecification:
-        AttributeName: Expiration
+        AttributeName: expiration
         Enabled: true
-      TableName: !FindInMap [EnvironmentMap, !Ref Environment, sessionTable]
+      TableName: !FindInMap [EnvironmentMap, !Ref Environment, sessionsTable]
       Tags:
         - Key: 'created-by'
           Value: 'choosee-api'

@@ -1,10 +1,19 @@
 /* eslint sort-keys:0 */
-import { Choice, Decision, GeocodedAddress, NewChoice, NewSession, PatchOperation, PlaceDetails, Session } from '@types'
+import {
+  ChoiceDetail,
+  ChoicesRecord,
+  GeocodedAddress,
+  NewSessionInput,
+  PatchOperation,
+  PlaceDetails,
+  SessionRecord,
+  ShareInput,
+  UserRecord,
+} from '@types'
 
 // Places
 
 export const placeId = 'ChIJk8cmpsa33IcRbKLpDn3le4g'
-
 export const place1: PlaceDetails = {
   formattedAddress: '115 S 5th St, Columbia, MO 65201, USA',
   formattedPhoneNumber: '(573) 499-0400',
@@ -24,6 +33,7 @@ export const place1: PlaceDetails = {
   priceLevel: 'PRICE_LEVEL_MODERATE',
   rating: 4.5,
   ratingsTotal: undefined,
+  placeTypes: ['pub', 'bar', 'american_restaurant', 'restaurant', 'food', 'point_of_interest', 'establishment'],
   website: 'http://www.flatbranch.com/',
 }
 
@@ -46,101 +56,136 @@ export const place2: PlaceDetails = {
   priceLevel: 'PRICE_LEVEL_MODERATE',
   rating: 4.6,
   ratingsTotal: undefined,
+  placeTypes: ['pizza_restaurant', 'meal_takeaway', 'bar', 'restaurant', 'food', 'point_of_interest', 'establishment'],
   website: 'https://www.shakespeares.com/',
+}
+
+// Session
+
+export const sessionId = 'abc123'
+
+export const session: SessionRecord = {
+  sessionId: 'abc123',
+  address: 'Columbia, MO 65203, USA',
+  location: { latitude: 38.9538484, longitude: -92.3714428 },
+  currentRound: 0,
+  bracket: [
+    [
+      ['choice-1', 'choice-2'],
+      ['choice-3', 'choice-4'],
+    ],
+  ],
+  byes: [null],
+  isReady: true,
+  errorMessage: null,
+  timeoutAt: undefined,
+  winner: null,
+  expiration: 1728547851,
+  type: ['restaurant'],
+  exclude: ['breakfast_restaurant'],
+  radius: 3757,
+  rankBy: 'POPULARITY',
+  totalRounds: 2,
+  votersSubmitted: 0,
 }
 
 // Choices
 
-export const choiceId = 'abc123'
+export const choiceDetail1: ChoiceDetail = {
+  choiceId: 'choice-1',
+  name: 'Flat Branch Pub & Brewing',
+  formattedAddress: '115 S 5th St, Columbia, MO 65201, USA',
+  formattedPhoneNumber: '(573) 499-0400',
+  internationalPhoneNumber: '+1 573-499-0400',
+  priceLevel: 'PRICE_LEVEL_MODERATE',
+  rating: 4.5,
+  ratingsTotal: 1200,
+  photos: ['a-picture-stream'],
+  openHours: ['Monday: 11:00 AM – 9:00 PM'],
+  placeTypes: ['Pub', 'Bar', 'American'],
+  website: 'http://www.flatbranch.com/',
+}
 
-export const choice: Choice = {
-  address: '90210',
-  choices: [place1, place2],
-  exclude: ['breakfast_restaurant'],
+export const choiceDetail2: ChoiceDetail = {
+  choiceId: 'choice-2',
+  name: "Shakespeare's Pizza - Downtown",
+  formattedAddress: '225 S 9th St, Columbia, MO 65201, USA',
+  formattedPhoneNumber: '(573) 449-2454',
+  internationalPhoneNumber: '+1 573-449-2454',
+  priceLevel: 'PRICE_LEVEL_MODERATE',
+  rating: 4.6,
+  ratingsTotal: 800,
+  photos: [],
+  placeTypes: ['Pizza', 'Bar'],
+  website: 'https://www.shakespeares.com/',
+}
+
+export const choiceDetail3: ChoiceDetail = {
+  choiceId: 'choice-3',
+  name: "Addison's",
+  formattedAddress: '709 Cherry St, Columbia, MO 65201, USA',
+  rating: 4.3,
+  ratingsTotal: 600,
+  photos: ['photo-stream-3'],
+  placeTypes: [],
+}
+
+export const choiceDetail4: ChoiceDetail = {
+  choiceId: 'choice-4',
+  name: 'Booches Billiard Hall',
+  formattedAddress: '110 S 9th St, Columbia, MO 65201, USA',
+  rating: 4.4,
+  ratingsTotal: 500,
+  photos: ['photo-stream-4'],
+  placeTypes: [],
+}
+
+export const choicesRecord: ChoicesRecord = {
+  choices: {
+    'choice-1': choiceDetail1,
+    'choice-2': choiceDetail2,
+    'choice-3': choiceDetail3,
+    'choice-4': choiceDetail4,
+  },
   expiration: 1728547851,
-  latLng: {
-    latitude: 39.0013395,
-    longitude: -92.3128326,
-  },
-  radius: 50_000,
-  rankBy: 'POPULARITY',
-  type: ['restaurant'],
 }
 
-export const newChoice: NewChoice = {
-  address: '90210',
-  exclude: ['breakfast_restaurant'],
-  latitude: 39.0013395,
-  longitude: -92.3128326,
-  radius: 50_000,
-  rankBy: 'POPULARITY',
-  type: ['restaurant'],
+// Users
+
+export const userId = 'fuzzy-penguin'
+
+export const userRecord: UserRecord = {
+  userId: 'fuzzy-penguin',
+  name: null,
+  phone: null,
+  subscribedRounds: [],
+  votes: [[null, null]],
+  textsSent: 0,
+  expiration: 1728547851,
 }
 
-// Decisions
+// Inputs
 
-export const decision: Decision = {
-  decisions: { "Shakespeare's Pizza - Downtown": true },
-  expiration: 1728533252,
-}
-
-export const jsonPatchOperations: PatchOperation[] = [{ op: 'replace', path: '/voterCount', value: 1 }]
-
-// Sessions
-
-export const sessionId = 'abc123'
-
-export const session: Session = {
+export const newSessionInput: NewSessionInput = {
   address: 'Columbia, MO 65203, USA',
-  choiceId,
-  exclude: ['breakfast_restaurant'],
-  expiration: 1649131360051,
-  location: {
-    latitude: 38.9538484,
-    longitude: -92.3714428,
-  },
-  radius: 3_757,
-  rankBy: 'POPULARITY',
-  status: {
-    current: 'deciding',
-  },
   type: ['restaurant'],
-  voterCount: 2,
+  exclude: ['breakfast_restaurant'],
+  radiusMiles: 2.33,
+  rankBy: 'POPULARITY',
 }
 
-export const newSession: NewSession = {
-  address: 'Columbia, MO 65203, USA',
-  exclude: ['breakfast_restaurant'],
-  expiration: 1742868571,
-  radius: 3_757,
-  rankBy: 'POPULARITY',
-  type: ['restaurant'],
-  voterCount: 2,
+export const shareInput: ShareInput = {
+  phone: '+15551234567',
+  type: 'text',
 }
+
+// JSON Patch
+
+export const jsonPatchOperations: PatchOperation[] = [{ op: 'replace', path: '/votes/0/0', value: 'choice-1' }]
 
 // reCAPTCHA
 
 export const recaptchaToken = 'ytrewsdfghjmnbgtyu'
-
-// Authentication
-
-export const jwt =
-  'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2NvZ25pdG8taWRwLnVzLWVhc3QtMi5hbWF6b25hd3MuY29tL3VzLWVhc3QtMl94cXh6eUlPejQiLCJpYXQiOjE2NTI2OTEwMDAsImV4cCI6MTY4NDIyNzAwMCwiYXVkIjoiY2hvb3NlZS5kYm93bGFuZC5jb20iLCJzdWIiOiJlZmQzMWI2Ny0xOWYyLTRkMGEtYTcyMy03ODUwNmZmYzBiN2UiLCJuYW1lIjoiRGF2ZSIsImNvZ25pdG86dXNlcm5hbWUiOiJlZmQzMWI2Ny0xOWYyLTRkMGEtYTcyMy03ODUwNmZmYzBiN2UiLCJwaG9uZV9udW1iZXIiOiIrMTU1NTEyMzQ1NjciLCJwaG9uZV9udW1iZXJfdmVyaWZpZWQiOiJ0cnVlIiwidG9rZW5fdXNlIjoiaWQifQ.BW3Y6LNrtZDexFdkpq3FE6ZLu10B--030jJw_41Kvvg'
-
-export const decodedJwt = {
-  aud: 'choosee.dbowland.com',
-  'cognito:username': 'efd31b67-19f2-4d0a-a723-78506ffc0b7e',
-  exp: 1684227000,
-  iat: 1652691000,
-  iss: 'https://cognito-idp.us-east-2.amazonaws.com/us-east-2_xqxzyIOz4',
-  name: 'Dave',
-  phone_number: '+15551234567',
-  phone_number_verified: 'true',
-  sub: 'efd31b67-19f2-4d0a-a723-78506ffc0b7e',
-  token_use: 'id',
-}
-
-export const userId = '+15551234567'
 
 // Geocoding
 

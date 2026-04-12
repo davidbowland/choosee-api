@@ -1,35 +1,22 @@
-import { idMaxLength, idMinLength } from '../config'
+import { adjectives } from '../assets/adjectives'
+import { nouns } from '../assets/nouns'
 
-// Don't allow vowels, digits that look like vowels, or ambiguous characters
-const allowedCharacters = '256789bcdfghjmnpqrstvwxz'
-
-type GetById = (id: string) => any
-
-const valueToId = (value: number): string => {
-  const digit = allowedCharacters.charAt(value % allowedCharacters.length)
-  return value >= allowedCharacters.length ? valueToId(Math.floor(value / allowedCharacters.length)) + digit : digit
+export const generateSessionId = (): string => {
+  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)]
+  const noun = nouns[Math.floor(Math.random() * nouns.length)]
+  return `${adjective}-${noun}`
 }
 
-const idExists = async (id: string, getById: GetById): Promise<boolean> => {
-  try {
-    await getById(id)
-    return true
-  } catch (error) {
-    return false
+export const generateUserId = (existingUserIds: string[], maxRetries = 5): string => {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)]
+    const noun = nouns[Math.floor(Math.random() * nouns.length)]
+    const id = `${adjective}-${noun}`
+
+    if (!existingUserIds.includes(id)) {
+      return id
+    }
   }
-}
 
-const getRandomId = async (minValue: number, maxValue: number, getById: GetById): Promise<string> => {
-  const randomValue = Math.round(Math.random() * (maxValue - minValue) + minValue)
-  const id = valueToId(randomValue)
-  if (await idExists(id, getById)) {
-    return getRandomId(minValue, maxValue, getById)
-  }
-  return id
-}
-
-export const getNextId = async (getById: GetById): Promise<string> => {
-  const minValue = Math.pow(allowedCharacters.length, idMinLength - 1)
-  const maxValue = Math.pow(allowedCharacters.length, idMaxLength)
-  return getRandomId(minValue, maxValue, getById)
+  throw new Error('Failed to generate a unique user ID after maximum retries')
 }

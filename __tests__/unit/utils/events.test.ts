@@ -1,158 +1,307 @@
-import { decodedJwt, jsonPatchOperations, newSession } from '../__mocks__'
-import reverseEventJson from '@events/get-reverse-geocode.json'
-import patchEventJson from '@events/patch-session.json'
-import postSendTextToEventJson from '@events/post-send-text-to.json'
-import postEventJson from '@events/post-session.json'
-import { APIGatewayProxyEventV2, NewSession } from '@types'
+import { ValidationError } from '@errors'
+
+import { APIGatewayProxyEventV2 } from '@types'
 import {
-  extractJsonPatchFromEvent,
-  extractJwtFromEvent,
-  extractLatLngFromEvent,
-  extractNewSessionFromEvent,
-  extractTokenFromEvent,
-  formatSession,
+  extractRecaptchaToken,
+  formatLatLng,
+  parseCloseRoundInput,
+  parseLatLng,
+  parseNewSessionBody,
+  parseShareBody,
+  parseSubscribeBody,
+  parseUserPatch,
 } from '@utils/events'
 
+const makeEvent = (overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 =>
+  ({
+    body: '{}',
+    headers: {},
+    isBase64Encoded: false,
+    pathParameters: {},
+    queryStringParameters: {},
+    ...overrides,
+  }) as unknown as APIGatewayProxyEventV2
+
+const withBody = (body: unknown, base64 = false): Partial<APIGatewayProxyEventV2> => {
+  const json = JSON.stringify(body)
+  return base64
+    ? { body: Buffer.from(json).toString('base64'), isBase64Encoded: true }
+    : { body: json, isBase64Encoded: false }
+}
+
 describe('events', () => {
-  const epochTime = 1742760571384
-
-  beforeAll(() => {
-    Date.now = () => epochTime
-  })
-
-  describe('formatSession', () => {
-    it('should throw error on missing address', () => {
-      const invalidSession = { ...newSession, address: undefined }
-      expect(() => formatSession(invalidSession)).toThrow()
+  describe('formatLatLng', () => {
+    it('should return valid lat/lng', () => {
+      expect(formatLatLng({ latitude: 38.9, longitude: -77.0 })).toEqual({ latitude: 38.9, longitude: -77.0 })
     })
 
-    it('should throw error when expiration is too far in the future', () => {
-      const tooLateExpirationSession = { ...newSession, expiration: epochTime + 100_000_000_000 }
-      expect(() => formatSession(tooLateExpirationSession)).toThrow()
+    it('should throw on NaN latitude', () => {
+      expect(() => formatLatLng({ latitude: NaN, longitude: -77 })).toThrow(ValidationError)
     })
 
-    it('should throw error when latitude is provided but longitude is not', () => {
-      const noLongitudeSession = { ...newSession, latitude: 47, longitude: undefined }
-      expect(() => formatSession(noLongitudeSession)).toThrow()
+    it.each([-91, 91])('should throw on out-of-range latitude %s', (lat) => {
+      expect(() => formatLatLng({ latitude: lat, longitude: 0 })).toThrow(ValidationError)
     })
 
-    it('should throw error when longitude is provided but latitude is not', () => {
-      const noLatitudeSession = { ...newSession, latitude: undefined, longitude: 84 }
-      expect(() => formatSession(noLatitudeSession)).toThrow()
-    })
-
-    it.each([undefined, 'fnord'])('should throw error on invalid rankBy (%s)', (rankBy) => {
-      const invalidRankBySession = { ...newSession, rankBy } as NewSession
-      expect(() => formatSession(invalidRankBySession)).toThrow()
-    })
-
-    it.each([undefined, 0, 50_001])('should throw error when ranked by prominence and bad radius', (radius) => {
-      const invalidRadiusSession = { ...newSession, radius, rankBy: 'POPULARITY' } as NewSession
-      expect(() => formatSession(invalidRadiusSession)).toThrow()
-    })
-
-    it.each([undefined, 'fnord'])('should throw error on invalid type (%s)', (type) => {
-      const invalidTypeSession = { ...newSession, type: type ? [type] : undefined } as NewSession
-      expect(() => formatSession(invalidTypeSession)).toThrow()
-    })
-
-    it.each([undefined, 0, 11])('should throw error on invalid voterCount (%s)', (voterCount) => {
-      const invalidVoterCountSession = { ...newSession, voterCount } as NewSession
-      expect(() => formatSession(invalidVoterCountSession)).toThrow()
-    })
-
-    it('should return formatted session with valid expiration', () => {
-      const result = formatSession(newSession)
-      expect(result).toEqual(expect.objectContaining(newSession))
-      expect(result.expiration).toBeGreaterThan(epochTime / 1000)
+    it.each([-181, 181])('should throw on out-of-range longitude %s', (lng) => {
+      expect(() => formatLatLng({ latitude: 0, longitude: lng })).toThrow(ValidationError)
     })
   })
 
-  describe('extractJsonPatchFromEvent', () => {
-    it('should extract JSON patch operations from event', async () => {
-      const result = await extractJsonPatchFromEvent(patchEventJson as unknown as APIGatewayProxyEventV2)
-      expect(result).toEqual(jsonPatchOperations)
+  describe('parseNewSessionBody', () => {
+    const validBody = {
+      address: '123 Main St',
+      radiusMiles: 5,
+      rankBy: 'DISTANCE',
+      type: ['restaurant'],
+    }
+
+    it('should parse a valid body', () => {
+      const event = makeEvent(withBody(validBody))
+      const result = parseNewSessionBody(event)
+      expect(result).toEqual({
+        address: '123 Main St',
+        exclude: [],
+        radiusMiles: 5,
+        rankBy: 'DISTANCE',
+        type: ['restaurant'],
+      })
+    })
+
+    it('should parse base64-encoded body', () => {
+      const event = makeEvent(withBody(validBody, true))
+      const result = parseNewSessionBody(event)
+      expect(result.address).toBe('123 Main St')
+    })
+
+    it('should accept optional latitude and longitude', () => {
+      const event = makeEvent(withBody({ ...validBody, latitude: 38.9, longitude: -77.0 }))
+      const result = parseNewSessionBody(event)
+      expect(result.latitude).toBe(38.9)
+      expect(result.longitude).toBe(-77.0)
+    })
+
+    it('should throw when address is missing', () => {
+      const event = makeEvent(withBody({ ...validBody, address: undefined }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should throw when type is empty', () => {
+      const event = makeEvent(withBody({ ...validBody, type: [] }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should throw on invalid place type', () => {
+      const event = makeEvent(withBody({ ...validBody, type: ['invalid_type'] }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should throw on invalid rankBy', () => {
+      const event = makeEvent(withBody({ ...validBody, rankBy: 'INVALID' }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it.each(['DISTANCE', 'POPULARITY', 'ALL'])('should accept rankBy %s', (rankBy) => {
+      const event = makeEvent(withBody({ ...validBody, rankBy }))
+      const result = parseNewSessionBody(event)
+      expect(result.rankBy).toBe(rankBy)
+    })
+
+    it('should throw when only latitude is provided', () => {
+      const event = makeEvent(withBody({ ...validBody, latitude: 38.9 }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should throw on out-of-range latitude in body', () => {
+      const event = makeEvent(withBody({ ...validBody, latitude: 999, longitude: -77.0 }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it.each([0, -1, 31])('should throw on invalid radiusMiles %s', (radiusMiles) => {
+      const event = makeEvent(withBody({ ...validBody, radiusMiles }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it.each([1, 15, 30])('should accept valid radiusMiles %s', (radiusMiles) => {
+      const event = makeEvent(withBody({ ...validBody, radiusMiles }))
+      const result = parseNewSessionBody(event)
+      expect(result.radiusMiles).toBe(radiusMiles)
+    })
+
+    it('should throw on radiusMiles below min', () => {
+      const event = makeEvent(withBody({ ...validBody, radiusMiles: 0.5 }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should throw when body is null', () => {
+      const event = makeEvent({ body: null } as unknown as Partial<APIGatewayProxyEventV2>)
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
     })
   })
 
-  describe('extractJwtFromEvent', () => {
-    it('should successfully extract JWT payload from event', () => {
-      const result = extractJwtFromEvent(postSendTextToEventJson as unknown as APIGatewayProxyEventV2)
-      expect(result).toEqual(decodedJwt)
+  describe('parseUserPatch', () => {
+    it('should accept valid name patch', () => {
+      const ops = [{ op: 'replace', path: '/name', value: 'Alice' }]
+      const result = parseUserPatch(makeEvent(withBody(ops)))
+      expect(result).toEqual(ops)
     })
 
-    it('should return null when JWT is invalid', () => {
-      const result = extractJwtFromEvent({
-        ...postSendTextToEventJson,
-        headers: {
-          authorization: 'Bearer invalid jwt',
-        },
-      } as unknown as APIGatewayProxyEventV2)
-      expect(result).toBe(null)
+    it('should accept valid phone patch', () => {
+      const ops = [{ op: 'replace', path: '/phone', value: '+12025551234' }]
+      const result = parseUserPatch(makeEvent(withBody(ops)))
+      expect(result).toEqual(ops)
     })
 
-    it('should return null when authorization header is missing', () => {
-      const event = { ...postSendTextToEventJson, headers: {} } as unknown as APIGatewayProxyEventV2
-      const result = extractJwtFromEvent(event)
-      expect(result).toBe(null)
+    it('should accept valid votes patch', () => {
+      const ops = [{ op: 'replace', path: '/votes/0/1', value: 'choice-1' }]
+      const result = parseUserPatch(makeEvent(withBody(ops)))
+      expect(result).toEqual(ops)
+    })
+
+    it('should accept add op', () => {
+      const ops = [{ op: 'add', path: '/name', value: 'Bob' }]
+      const result = parseUserPatch(makeEvent(withBody(ops)))
+      expect(result).toEqual(ops)
+    })
+
+    it('should accept test op', () => {
+      const ops = [{ op: 'test', path: '/name', value: 'Alice' }]
+      const result = parseUserPatch(makeEvent(withBody(ops)))
+      expect(result).toEqual(ops)
+    })
+
+    it('should throw on disallowed path', () => {
+      const ops = [{ op: 'replace', path: '/subscribedRounds', value: [1] }]
+      expect(() => parseUserPatch(makeEvent(withBody(ops)))).toThrow(ValidationError)
+    })
+
+    it('should throw on path that starts with /name but is not exact', () => {
+      const ops = [{ op: 'replace', path: '/names_evil', value: 'x' }]
+      expect(() => parseUserPatch(makeEvent(withBody(ops)))).toThrow(ValidationError)
+    })
+
+    it('should throw on path that starts with /phone but is not exact', () => {
+      const ops = [{ op: 'replace', path: '/phoneExtra', value: 'x' }]
+      expect(() => parseUserPatch(makeEvent(withBody(ops)))).toThrow(ValidationError)
+    })
+
+    it('should throw on malformed votes path', () => {
+      const ops = [{ op: 'replace', path: '/votes', value: 'x' }]
+      expect(() => parseUserPatch(makeEvent(withBody(ops)))).toThrow(ValidationError)
+    })
+
+    it('should throw on remove op', () => {
+      const ops = [{ op: 'remove', path: '/name' }]
+      expect(() => parseUserPatch(makeEvent(withBody(ops)))).toThrow(ValidationError)
+    })
+
+    it('should throw on move op', () => {
+      const ops = [{ op: 'move', path: '/name', from: '/phone' }]
+      expect(() => parseUserPatch(makeEvent(withBody(ops)))).toThrow(ValidationError)
+    })
+
+    it('should throw when name exceeds 50 characters', () => {
+      const ops = [{ op: 'replace', path: '/name', value: 'A'.repeat(51) }]
+      expect(() => parseUserPatch(makeEvent(withBody(ops)))).toThrow(ValidationError)
+    })
+
+    it('should throw on invalid phone format', () => {
+      const ops = [{ op: 'replace', path: '/phone', value: '555-1234' }]
+      expect(() => parseUserPatch(makeEvent(withBody(ops)))).toThrow(ValidationError)
+    })
+
+    it('should throw when body is not an array', () => {
+      expect(() => parseUserPatch(makeEvent(withBody({ op: 'replace', path: '/name' })))).toThrow(ValidationError)
     })
   })
 
-  describe('extractLatLngFromEvent', () => {
-    const event = reverseEventJson as unknown as APIGatewayProxyEventV2
-    const expectedResult = { latitude: 38.897957, longitude: -77.03656 }
-
-    it('should extract latitude and longitude from event', async () => {
-      const result = extractLatLngFromEvent(event)
-      expect(result).toEqual(expectedResult)
+  describe('parseLatLng', () => {
+    it('should extract lat/lng from query params', () => {
+      const event = makeEvent({ queryStringParameters: { latitude: '38.9', longitude: '-77.0' } })
+      expect(parseLatLng(event)).toEqual({ latitude: 38.9, longitude: -77.0 })
     })
 
-    it.each([undefined, -91, 91])('should throw exception when latitude is invalid (%s)', async (latitude) => {
-      const invalidLatEvent = {
-        ...event,
-        queryStringParameters: { ...event.queryStringParameters, latitude },
-      } as unknown as APIGatewayProxyEventV2
-      expect(() => extractLatLngFromEvent(invalidLatEvent)).toThrow()
-    })
-
-    it.each([undefined, -181, 181])('should throw exception when longitude is invalid (%s)', async (longitude) => {
-      const invalidLngEvent = {
-        ...event,
-        queryStringParameters: { ...event.queryStringParameters, longitude },
-      } as unknown as APIGatewayProxyEventV2
-      expect(() => extractLatLngFromEvent(invalidLngEvent)).toThrow()
+    it('should throw on missing params', () => {
+      const event = makeEvent({ queryStringParameters: {} })
+      expect(() => parseLatLng(event)).toThrow(ValidationError)
     })
   })
 
-  describe('extractNewSessionFromEvent', () => {
-    const event = postEventJson as unknown as APIGatewayProxyEventV2
-
-    it('should extract session data from event', async () => {
-      const result = await extractNewSessionFromEvent(event)
-      expect(result).toEqual(expect.objectContaining(newSession))
+  describe('extractRecaptchaToken', () => {
+    it('should extract token from headers', () => {
+      const event = makeEvent({ headers: { 'x-recaptcha-token': 'abc123' } })
+      expect(extractRecaptchaToken(event)).toBe('abc123')
     })
 
-    it('should extract session data from base64 encoded event', async () => {
-      const tempEvent = {
-        ...event,
-        body: Buffer.from(event.body).toString('base64'),
-        isBase64Encoded: true,
-      } as unknown as APIGatewayProxyEventV2
-      const result = await extractNewSessionFromEvent(tempEvent)
-      expect(result).toEqual(expect.objectContaining(newSession))
-    })
-
-    it('should throw error when event contains invalid session data', async () => {
-      const tempEvent = { ...event, body: JSON.stringify({}) } as unknown as APIGatewayProxyEventV2
-      expect(() => extractNewSessionFromEvent(tempEvent)).toThrow()
+    it('should throw when token is missing', () => {
+      const event = makeEvent({ headers: {} })
+      expect(() => extractRecaptchaToken(event)).toThrow(ValidationError)
     })
   })
 
-  describe('extractTokenFromEvent', () => {
-    const event = postEventJson as unknown as APIGatewayProxyEventV2
-    it('should extract token from event query parameters', async () => {
-      const result = extractTokenFromEvent(event)
-      expect(result).toEqual('ytrewsdfghjmnbgtyu')
+  describe('parseShareBody', () => {
+    it('should parse valid share body', () => {
+      const body = { phone: '+12025551234', type: 'text' }
+      expect(parseShareBody(makeEvent(withBody(body)))).toEqual(body)
+    })
+
+    it('should throw on invalid phone', () => {
+      const body = { phone: '555-1234', type: 'text' }
+      expect(() => parseShareBody(makeEvent(withBody(body)))).toThrow(ValidationError)
+    })
+
+    it('should throw on invalid type', () => {
+      const body = { phone: '+12025551234', type: 'email' }
+      expect(() => parseShareBody(makeEvent(withBody(body)))).toThrow(ValidationError)
+    })
+
+    it('should throw when body is null', () => {
+      const event = makeEvent({ body: null } as unknown as Partial<APIGatewayProxyEventV2>)
+      expect(() => parseShareBody(event)).toThrow(ValidationError)
+    })
+  })
+
+  describe('parseSubscribeBody', () => {
+    it('should parse valid subscribe body', () => {
+      const body = { roundId: 0, userId: 'fuzzy-penguin' }
+      expect(parseSubscribeBody(makeEvent(withBody(body)))).toEqual(body)
+    })
+
+    it('should throw when userId is missing', () => {
+      const body = { roundId: 0 }
+      expect(() => parseSubscribeBody(makeEvent(withBody(body)))).toThrow(ValidationError)
+    })
+
+    it('should throw when roundId is negative', () => {
+      const body = { roundId: -1, userId: 'fuzzy-penguin' }
+      expect(() => parseSubscribeBody(makeEvent(withBody(body)))).toThrow(ValidationError)
+    })
+
+    it('should throw when roundId is not an integer', () => {
+      const body = { roundId: 0.5, userId: 'fuzzy-penguin' }
+      expect(() => parseSubscribeBody(makeEvent(withBody(body)))).toThrow(ValidationError)
+    })
+  })
+
+  describe('parseCloseRoundInput', () => {
+    it('should parse valid roundId from path', () => {
+      const event = makeEvent({ pathParameters: { roundId: '2' } })
+      expect(parseCloseRoundInput(event)).toEqual({ roundId: 2 })
+    })
+
+    it('should throw on missing roundId', () => {
+      const event = makeEvent({ pathParameters: {} })
+      expect(() => parseCloseRoundInput(event)).toThrow(ValidationError)
+    })
+
+    it('should throw on non-numeric roundId', () => {
+      const event = makeEvent({ pathParameters: { roundId: 'abc' } })
+      expect(() => parseCloseRoundInput(event)).toThrow(ValidationError)
+    })
+
+    it('should throw on negative roundId', () => {
+      const event = makeEvent({ pathParameters: { roundId: '-1' } })
+      expect(() => parseCloseRoundInput(event)).toThrow(ValidationError)
     })
   })
 })

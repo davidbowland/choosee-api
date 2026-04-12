@@ -1,7 +1,6 @@
 import axios from 'axios'
 
-import { APIGatewayProxyEventV2 } from '../types'
-import { extractTokenFromEvent } from '../utils/events'
+import { recaptchaSecretKey } from '../config'
 
 const google = axios.create({
   baseURL: 'https://www.google.com/',
@@ -15,16 +14,14 @@ export const getCaptchaScore = async (token: string): Promise<number> =>
       {
         params: {
           response: token,
-          secret: process.env.RECAPTCHA_SECRET_KEY,
+          secret: recaptchaSecretKey,
         },
       },
     )
-    .then((response) => response.data.score)
-
-export const getScoreFromEvent = async (event: APIGatewayProxyEventV2): Promise<number> => {
-  if (event.requestContext?.domainPrefix === 'choosee-api-internal') {
-    return 1
-  } else {
-    return await getCaptchaScore(extractTokenFromEvent(event))
-  }
-}
+    .then((response) => {
+      const score = response.data.score
+      if (typeof score !== 'number') {
+        throw new Error('reCAPTCHA response missing score')
+      }
+      return score
+    })

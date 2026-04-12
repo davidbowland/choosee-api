@@ -1,0 +1,13 @@
+{
+  "pathParameters": {
+    "sessionId": "abc123",
+    "userId": "fuzzy-penguin"
+  },
+  "body": "{\"phone\":\"+15551234567\",\"type\":\"text\"}",
+  "requestContext": {
+    "http": {
+      "method": "POST",
+      "path": "/v1/sessions/abc123/share"
+    }
+  }
+}

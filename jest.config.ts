@@ -88,6 +88,7 @@ export default {
   moduleNameMapper: {
     '^@assets/(.*)$': '<rootDir>/src/assets/$1',
     '^@config$': '<rootDir>/src/config',
+    '^@errors$': '<rootDir>/src/errors',
     '^@events/(.*)$': '<rootDir>/events/$1',
     '^@handlers/(.*)$': '<rootDir>/src/handlers/$1',
     '^@services/(.*)$': '<rootDir>/src/services/$1',

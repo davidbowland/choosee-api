@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Post-Task Quality Check",
+  "description": "After a spec task completes, verifies that all code changes have conforming tests, comments explain WHY not WHAT, and runs lint + typecheck.",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A spec task just completed. Perform the following quality checks on all code changes made during this task:\n\n1. **Test coverage**: Every code change MUST have corresponding unit tests. Tests MUST follow the exact patterns used in the existing test suite:\n   - Use `jest.mock()` for service/util dependencies\n   - Use `jest.mocked()` for typed mock access\n   - Import event JSON fixtures from `@events/` and cast as `APIGatewayProxyEventV2`\n   - Import shared mocks from `../__mocks__`\n   - Use nested `describe` blocks (outer: module name, inner: function name)\n   - Use `beforeAll` for shared mock setup, `mockResolvedValueOnce`/`mockRejectedValueOnce` for per-test overrides\n   - Assert with `expect.objectContaining(status.XXX)` for HTTP responses\n   - Mock `@utils/logging` in every handler test\n   - Place handler tests in `__tests__/unit/handlers/`, service tests in `__tests__/unit/services/`, util tests in `__tests__/unit/utils/`\n   If any new or changed code lacks tests matching these patterns, write them.\n\n2. **Comment quality**: Review every comment added or modified. Remove or rewrite any comment that:\n   - States the obvious or describes WHAT the code does (the code itself should be clear enough)\n   - Fails to explain WHY a decision was made, WHY a workaround exists, or WHY something non-obvious is happening\n   - Is boilerplate, redundant, or adds no value\n   Good comments explain intent, trade-offs, gotchas, or business context. If a comment isn't earning its keep, delete it.\n\n3. **Lint and typecheck**: Run `npm run lint && npm run typecheck` and fix any UNEXPECTED errors that come back. If the error will be fixed by a subsequent task, ignore it.\n\nDo NOT skip any of these steps. If everything passes, confirm it briefly."
+  }
+}

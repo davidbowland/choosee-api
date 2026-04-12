@@ -1,143 +1,169 @@
-import { decodedJwt, geocodedAddress, newSession, place1, sessionId } from '../__mocks__'
+import { ConflictError, ValidationError } from '@errors'
+
+import { newSessionInput, recaptchaToken } from '../__mocks__'
 import eventJson from '@events/post-session.json'
-import { postSessionHandlerAuthenticated, postSessionHandlerUnauthenticated } from '@handlers/post-session'
+import { handler } from '@handlers/post-session'
 import * as dynamodb from '@services/dynamodb'
-import * as googleMaps from '@services/google-maps'
 import * as recaptcha from '@services/recaptcha'
 import { APIGatewayProxyEventV2 } from '@types'
 import * as events from '@utils/events'
 import * as idGenerator from '@utils/id-generator'
 import status from '@utils/status'
 
+const mockSend = jest.fn()
+const mockInvokeCommand = jest.fn()
+
+jest.mock('@aws-sdk/client-lambda', () => ({
+  // function expression required: handler calls new InvokeCommand(...)
+  InvokeCommand: function (...args: unknown[]) {
+    return mockInvokeCommand(...args)
+  },
+  LambdaClient: jest.fn(() => ({ send: (...args: unknown[]) => mockSend(...args) })),
+}))
 jest.mock('@services/dynamodb')
-jest.mock('@services/google-maps')
 jest.mock('@services/recaptcha')
 jest.mock('@utils/events')
 jest.mock('@utils/id-generator')
-jest.mock('@utils/logging')
+jest.mock('@utils/logging', () => ({
+  log: jest.fn(),
+  logError: jest.fn(),
+  xrayCapture: jest.fn((x: unknown) => x),
+  xrayCaptureHttps: jest.fn(),
+}))
 
 describe('post-session', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
+  const NOW = 1700000000000
 
   beforeAll(() => {
-    jest.mocked(events).extractJwtFromEvent.mockReturnValue(null)
-    jest.mocked(events).extractNewSessionFromEvent.mockReturnValue(newSession)
-    jest.mocked(googleMaps).fetchGeocodeResults.mockResolvedValue(geocodedAddress)
-    jest.mocked(googleMaps).fetchPlaceResults.mockResolvedValue([place1])
-    jest.mocked(idGenerator).getNextId.mockResolvedValue(sessionId)
-    jest.mocked(recaptcha).getScoreFromEvent.mockResolvedValue(1)
+    jest.spyOn(Date, 'now').mockReturnValue(NOW)
+    jest.mocked(events).extractRecaptchaToken.mockReturnValue(recaptchaToken)
+    jest.mocked(events).parseNewSessionBody.mockReturnValue(newSessionInput)
+    jest.mocked(recaptcha).getCaptchaScore.mockResolvedValue(0.9)
+    jest.mocked(dynamodb).putNewSession.mockResolvedValue(undefined)
+    jest.mocked(idGenerator).generateSessionId.mockReturnValue('fuzzy-penguin')
+    mockSend.mockResolvedValue(undefined)
   })
 
-  describe('postSessionHandlerAuthenticated', () => {
-    it('should return BAD_REQUEST when new session is invalid', async () => {
-      jest.mocked(events).extractNewSessionFromEvent.mockImplementationOnce(() => {
-        throw new Error('Bad request')
-      })
-      const result = await postSessionHandlerAuthenticated(event)
-      expect(result).toEqual(expect.objectContaining(status.BAD_REQUEST))
-    })
-
-    it('should return INTERNAL_SERVER_ERROR when fetchPlaceResults rejects from geocode', async () => {
-      jest.mocked(googleMaps).fetchPlaceResults.mockRejectedValueOnce({
-        response: { data: { message: 'Invalid address' }, status: status.BAD_REQUEST.statusCode },
-      })
-      const result = await postSessionHandlerAuthenticated(event)
-      expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
-    })
-
-    it('should pass sessionId to setSessionById', async () => {
-      await postSessionHandlerAuthenticated(event)
-      expect(dynamodb.setSessionById).toHaveBeenCalledWith('abc123', expect.objectContaining(newSession))
-    })
-
-    it('should return INTERNAL_SERVER_ERROR on setSessionById reject', async () => {
-      jest.mocked(dynamodb).setSessionById.mockRejectedValueOnce(undefined)
-      const result = await postSessionHandlerAuthenticated(event)
-      expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
-    })
-
-    it('should not call fetchGeocodeResults when latitude and longitude are passed', async () => {
-      const sessionWithLatLong = { ...newSession, latitude: 39.0013395, longitude: -92.3128326 }
-      jest.mocked(events).extractNewSessionFromEvent.mockReturnValueOnce(sessionWithLatLong)
-      await postSessionHandlerAuthenticated(event)
-      expect(googleMaps.fetchGeocodeResults).not.toHaveBeenCalled()
-    })
-
-    it('should return CREATED and body', async () => {
-      const result = await postSessionHandlerAuthenticated(event)
-      expect(result).toEqual(expect.objectContaining(status.CREATED))
-      expect(googleMaps.fetchPlaceResults).toHaveBeenCalledWith(
-        { latitude: 39.0013395, longitude: -92.3128326 },
-        ['restaurant'],
-        ['breakfast_restaurant'],
-        'POPULARITY',
-        3_757,
-      )
-      expect(googleMaps.fetchGeocodeResults).toHaveBeenCalledWith('Columbia, MO 65203, USA')
-      expect(JSON.parse(result.body)).toEqual(
-        expect.objectContaining({
-          ...newSession,
-          sessionId: 'abc123',
-        }),
-      )
-    })
-
-    it('should include owner when JWT is present', async () => {
-      jest.mocked(events).extractJwtFromEvent.mockReturnValueOnce(decodedJwt)
-      const result = await postSessionHandlerAuthenticated(event)
-      expect(result).toEqual(expect.objectContaining(status.CREATED))
-      expect(JSON.parse(result.body)).toEqual(
-        expect.objectContaining({
-          ...newSession,
-          owner: 'efd31b67-19f2-4d0a-a723-78506ffc0b7e',
-          sessionId: 'abc123',
-        }),
-      )
-    })
-
-    it('should set finished status when no data', async () => {
-      jest.mocked(googleMaps).fetchPlaceResults.mockResolvedValueOnce([])
-      const result = await postSessionHandlerAuthenticated(event)
-      expect(result).toEqual(expect.objectContaining(status.CREATED))
-      expect(JSON.parse(result.body)).toEqual(
-        expect.objectContaining({
-          status: {
-            current: 'finished',
-          },
-        }),
-      )
-    })
+  afterAll(() => {
+    jest.restoreAllMocks()
   })
 
-  describe('postSessionHandlerUnauthenticated', () => {
-    it('should return FORBIDDEN when getScoreFromEvent is under threshold', async () => {
-      jest.mocked(recaptcha).getScoreFromEvent.mockResolvedValueOnce(0)
-      const result = await postSessionHandlerUnauthenticated(event)
+  describe('handler', () => {
+    it('should return FORBIDDEN when reCAPTCHA score is below threshold', async () => {
+      jest.mocked(recaptcha).getCaptchaScore.mockResolvedValueOnce(0.5)
+      const result = await handler(event)
       expect(result).toEqual(status.FORBIDDEN)
     })
 
-    it('should return INTERNAL_SERVER_ERROR when getScoreFromEvent rejects', async () => {
-      jest.mocked(recaptcha).getScoreFromEvent.mockRejectedValueOnce(undefined)
-      const result = await postSessionHandlerUnauthenticated(event)
-      expect(result).toEqual(status.INTERNAL_SERVER_ERROR)
+    it('should return BAD_REQUEST when parseNewSessionBody throws ValidationError', async () => {
+      jest.mocked(events).parseNewSessionBody.mockImplementationOnce(() => {
+        throw new ValidationError('address is required')
+      })
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining({ statusCode: status.BAD_REQUEST.statusCode }))
     })
 
-    it('should return CREATED and body', async () => {
-      const result = await postSessionHandlerUnauthenticated(event)
-      expect(result).toEqual(expect.objectContaining(status.CREATED))
-      expect(googleMaps.fetchPlaceResults).toHaveBeenCalledWith(
-        { latitude: 39.0013395, longitude: -92.3128326 },
-        ['restaurant'],
-        ['breakfast_restaurant'],
-        'POPULARITY',
-        3_757,
-      )
-      expect(JSON.parse(result.body)).toEqual(
+    it('should return BAD_REQUEST when extractRecaptchaToken throws ValidationError', async () => {
+      jest.mocked(events).extractRecaptchaToken.mockImplementationOnce(() => {
+        throw new ValidationError('x-recaptcha-token header is required')
+      })
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining({ statusCode: status.BAD_REQUEST.statusCode }))
+    })
+
+    it('should call putNewSession with correct session defaults', async () => {
+      await handler(event)
+      expect(dynamodb.putNewSession).toHaveBeenCalledWith(
+        'fuzzy-penguin',
         expect.objectContaining({
-          ...newSession,
-          sessionId: 'abc123',
+          bracket: [],
+          byes: [],
+          currentRound: 0,
+          errorMessage: null,
+          isReady: false,
+          location: null,
+          radius: Math.round(2.33 * 1609.34),
+          sessionId: 'fuzzy-penguin',
+          totalRounds: 0,
+          winner: null,
         }),
       )
+    })
+
+    it('should set expiration to 24 hours from now in seconds', async () => {
+      await handler(event)
+      const sessionArg = jest.mocked(dynamodb).putNewSession.mock.calls.at(-1)?.[1]
+      expect(sessionArg?.expiration).toBe(Math.floor(NOW / 1000) + 24 * 3600)
+    })
+
+    it('should set timeoutAt to now + configured timeout in ms', async () => {
+      await handler(event)
+      const sessionArg = jest.mocked(dynamodb).putNewSession.mock.calls.at(-1)?.[1]
+      expect(sessionArg?.timeoutAt).toBe(NOW + 10000)
+    })
+
+    it('should invoke Lambda with InvocationType Event', async () => {
+      await handler(event)
+      expect(mockInvokeCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          InvocationType: 'Event',
+        }),
+      )
+      expect(mockSend).toHaveBeenCalled()
+    })
+
+    it('should return ACCEPTED with sessionId in body', async () => {
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining(status.ACCEPTED))
+      expect(JSON.parse((result as { body: string }).body).sessionId).toBe('fuzzy-penguin')
+    })
+
+    it('should retry with new ID on session ID collision', async () => {
+      jest.mocked(dynamodb).putNewSession.mockRejectedValueOnce(new ConflictError('Session ID already exists'))
+      jest
+        .mocked(idGenerator)
+        .generateSessionId.mockReturnValueOnce('colliding-name')
+        .mockReturnValueOnce('unique-name')
+
+      const result = await handler(event)
+
+      expect(idGenerator.generateSessionId).toHaveBeenCalledTimes(2)
+      expect(result).toEqual(expect.objectContaining(status.ACCEPTED))
+      expect(JSON.parse((result as { body: string }).body).sessionId).toBe('unique-name')
+    })
+
+    it('should return INTERNAL_SERVER_ERROR after exhausting collision retries', async () => {
+      const conflict = new ConflictError('Session ID already exists')
+      jest
+        .mocked(dynamodb)
+        .putNewSession.mockRejectedValueOnce(conflict)
+        .mockRejectedValueOnce(conflict)
+        .mockRejectedValueOnce(conflict)
+        .mockRejectedValueOnce(conflict)
+        .mockRejectedValueOnce(conflict)
+
+      const result = await handler(event)
+
+      expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
+    })
+
+    it('should return INTERNAL_SERVER_ERROR when putNewSession rejects with non-conflict error', async () => {
+      jest.mocked(dynamodb).putNewSession.mockRejectedValueOnce(new Error('DynamoDB error'))
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
+    })
+
+    it('should return INTERNAL_SERVER_ERROR when Lambda invoke rejects', async () => {
+      mockSend.mockRejectedValueOnce(new Error('Lambda error'))
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
+    })
+
+    it('should return INTERNAL_SERVER_ERROR when getCaptchaScore rejects', async () => {
+      jest.mocked(recaptcha).getCaptchaScore.mockRejectedValueOnce(new Error('Network error'))
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
     })
   })
 })

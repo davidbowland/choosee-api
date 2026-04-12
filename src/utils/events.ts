@@ -1,115 +1,30 @@
-import Ajv from 'ajv'
-import jwt from 'jsonwebtoken'
-
 import placeTypes from '../assets/place-types'
-import { sessionExpireHours } from '../config'
-import { APIGatewayProxyEventV2, LatLng, NewSession, PatchOperation } from '../types'
+import { radiusMaxMiles, radiusMinMiles } from '../config'
+import { ValidationError } from '../errors'
+import {
+  APIGatewayProxyEventV2,
+  CloseRoundInput,
+  LatLng,
+  NewSessionInput,
+  PatchOperation,
+  RankByType,
+  ShareInput,
+  SubscribeInput,
+} from '../types'
 
-const ajv = new Ajv({ allErrors: true })
+const PHONE_REGEX = /^\+1[2-9]\d{9}$/
+const VOTES_PATH_REGEX = /^\/votes\/\d+\/\d+$/
+const ALLOWED_PATCH_OPS = ['replace', 'add', 'test']
 
-// hours * 60 minutes / hour * 60 seconds / minute = 3_600
-const SESSION_EXPIRATION_DURATION = sessionExpireHours * 3_600
-
-const getTimeInSeconds = () => Math.floor(Date.now() / 1000)
-
-/* Sessions */
-
-export const formatSession = (session: NewSession): NewSession => {
-  const placeTypeValues = placeTypes.map((t) => t.value)
-
-  const jsonSchema = {
-    additionalProperties: false,
-    properties: {
-      address: { type: 'string' },
-      exclude: {
-        items: { enum: placeTypeValues },
-        type: 'array',
-      },
-      expiration: { type: 'number' },
-      latitude: { type: 'number' },
-      longitude: { type: 'number' },
-      radius: { type: 'number' },
-      rankBy: { enum: ['DISTANCE', 'POPULARITY'] },
-      type: {
-        items: { enum: placeTypeValues },
-        type: 'array',
-      },
-      voterCount: { maximum: 10, minimum: 1, type: 'integer' },
-    },
-    required: ['address', 'exclude', 'radius', 'rankBy', 'type', 'voterCount'],
-    type: 'object',
+const requireBody = (event: APIGatewayProxyEventV2): string => {
+  const raw = event.isBase64Encoded && event.body ? Buffer.from(event.body, 'base64').toString('utf8') : event.body
+  if (!raw) {
+    throw new ValidationError('request body is required')
   }
-  const lastExpiration = getTimeInSeconds() + SESSION_EXPIRATION_DURATION
-
-  if (ajv.validate(jsonSchema, session) === false) {
-    throw new Error(JSON.stringify(ajv.errors))
-  } else if ((session.expiration ?? 0) > lastExpiration) {
-    throw new Error(
-      JSON.stringify([
-        {
-          instancePath: '/expiration',
-          keyword: 'value',
-          message: 'must be less than the maximum allowed value',
-          params: { maximum: [lastExpiration] },
-          schemaPath: '/properties/expiration/value',
-        },
-      ]),
-    )
-  } else if ((session.latitude === undefined) !== (session.longitude === undefined)) {
-    const [missing, present] = session.latitude === undefined ? ['latitude', 'longitude'] : ['longitude', 'latitude']
-    throw new Error(
-      JSON.stringify([
-        {
-          instancePath: `/${missing}`,
-          keyword: 'value',
-          message: `${missing} must be present when ${present} is defined`,
-          schemaPath: `/properties/${missing}/value`,
-        },
-      ]),
-    )
-  } else if (
-    session.rankBy === 'POPULARITY' &&
-    (session.radius === undefined || session.radius < 1 || session.radius > 50_000)
-  ) {
-    throw new Error(
-      JSON.stringify([
-        {
-          instancePath: '/radius',
-          keyword: 'value',
-          message: 'must be 1 thru 50,000 when rankBy is "POPULARITY"',
-          params: { maximum: [50_000], minimum: [1] },
-          schemaPath: '/properties/radius/value',
-        },
-      ]),
-    )
-  } else if (session.voterCount < 1 || session.voterCount > 10) {
-    throw new Error(
-      JSON.stringify([
-        {
-          instancePath: '/voterCount',
-          keyword: 'value',
-          message: 'must be 1 thru 10',
-          params: { maximum: [10], minimum: [1] },
-          schemaPath: '/properties/voterCount/value',
-        },
-      ]),
-    )
-  }
-
-  return {
-    address: session.address,
-    exclude: session.exclude,
-    expiration: session.expiration ?? lastExpiration,
-    latitude: session.latitude,
-    longitude: session.longitude,
-    radius: session.radius,
-    rankBy: session.rankBy,
-    type: session.type,
-    voterCount: session.voterCount,
-  }
+  return raw
 }
 
-/* LatLng */
+const parseEventBody = (event: APIGatewayProxyEventV2): unknown => JSON.parse(requireBody(event))
 
 interface LatLngParams {
   latitude: number
@@ -120,40 +35,170 @@ export const formatLatLng = (latLng: LatLngParams): LatLng => {
   const latitude = parseFloat(String(latLng.latitude))
   const longitude = parseFloat(String(latLng.longitude))
   if (isNaN(latitude) || isNaN(longitude)) {
-    throw new Error(JSON.stringify({ message: 'latitude and longitude query parameters must be provided' }))
+    throw new ValidationError('latitude and longitude query parameters must be provided')
   } else if (latitude < -90 || latitude > 90) {
-    throw new Error(JSON.stringify({ message: 'latitude must be between -90 and 90' }))
+    throw new ValidationError('latitude must be between -90 and 90')
   } else if (longitude < -180 || longitude > 180) {
-    throw new Error(JSON.stringify({ message: 'longitude must be between -180 and 180' }))
+    throw new ValidationError('longitude must be between -180 and 180')
   }
-
   return { latitude, longitude }
 }
 
-/* Events */
+export const parseNewSessionBody = (event: APIGatewayProxyEventV2): NewSessionInput => {
+  const body = parseEventBody(event) as Record<string, unknown>
+  const placeTypeValues = placeTypes.map((t) => t.value)
 
-const parseEventBody = (event: APIGatewayProxyEventV2): unknown =>
-  JSON.parse(
-    event.isBase64Encoded && event.body ? Buffer.from(event.body, 'base64').toString('utf8') : (event.body as string),
-  )
+  if (typeof body.address !== 'string' || body.address.trim().length === 0) {
+    throw new ValidationError('address is required')
+  }
 
-export const extractNewSessionFromEvent = (event: APIGatewayProxyEventV2): NewSession =>
-  formatSession(parseEventBody(event) as NewSession)
+  if (!Array.isArray(body.type) || body.type.length === 0) {
+    throw new ValidationError('type must be a non-empty array of valid place types')
+  }
+  for (const t of body.type) {
+    if (!placeTypeValues.includes(t as string)) {
+      throw new ValidationError(`invalid place type: ${t}`)
+    }
+  }
 
-export const extractJsonPatchFromEvent = (event: APIGatewayProxyEventV2): PatchOperation[] =>
-  parseEventBody(event) as PatchOperation[]
+  const exclude: string[] = []
+  if (body.exclude !== undefined) {
+    if (!Array.isArray(body.exclude)) {
+      throw new ValidationError('exclude must be an array of valid place types')
+    }
+    for (const e of body.exclude) {
+      if (!placeTypeValues.includes(e as string)) {
+        throw new ValidationError(`invalid exclude place type: ${e}`)
+      }
+      exclude.push(e as string)
+    }
+  }
 
-interface DecodedJWT {
-  name: string
-  phone_number?: string
-  sub: string
+  if (
+    typeof body.radiusMiles !== 'number' ||
+    isNaN(body.radiusMiles) ||
+    body.radiusMiles < radiusMinMiles ||
+    body.radiusMiles > radiusMaxMiles
+  ) {
+    throw new ValidationError(`radiusMiles must be a number between ${radiusMinMiles} and ${radiusMaxMiles}`)
+  }
+
+  if (body.rankBy !== 'DISTANCE' && body.rankBy !== 'POPULARITY' && body.rankBy !== 'ALL') {
+    throw new ValidationError('rankBy must be ALL, DISTANCE, or POPULARITY')
+  }
+
+  const hasLat = body.latitude !== undefined
+  const hasLng = body.longitude !== undefined
+  if (hasLat !== hasLng) {
+    throw new ValidationError('latitude and longitude must both be present or both absent')
+  }
+
+  const result: NewSessionInput = {
+    address: body.address as string,
+    exclude,
+    radiusMiles: body.radiusMiles as number,
+    rankBy: body.rankBy as RankByType,
+    type: body.type as string[],
+  }
+
+  if (hasLat) {
+    if (typeof body.latitude !== 'number' || typeof body.longitude !== 'number') {
+      throw new ValidationError('latitude and longitude must be numbers')
+    }
+    const validated = formatLatLng({ latitude: body.latitude as number, longitude: body.longitude as number })
+    result.latitude = validated.latitude
+    result.longitude = validated.longitude
+  }
+
+  return result
 }
 
-export const extractJwtFromEvent = (event: APIGatewayProxyEventV2): DecodedJWT =>
-  jwt.decode((event.headers.authorization || event.headers.Authorization || '').replace(/^Bearer /i, '')) as DecodedJWT
+export const parseUserPatch = (event: APIGatewayProxyEventV2): PatchOperation[] => {
+  const ops = parseEventBody(event) as PatchOperation[]
 
-export const extractLatLngFromEvent = (event: APIGatewayProxyEventV2): LatLng =>
-  formatLatLng(event.queryStringParameters as unknown as LatLngParams)
+  if (!Array.isArray(ops)) {
+    throw new ValidationError('request body must be an array of patch operations')
+  }
 
-export const extractTokenFromEvent = (event: APIGatewayProxyEventV2): string =>
-  event.headers['x-recaptcha-token'] as string
+  for (const op of ops) {
+    if (!ALLOWED_PATCH_OPS.includes(op.op)) {
+      throw new ValidationError(`disallowed patch op: ${op.op}`)
+    }
+
+    const path = op.path
+    if (path !== '/name' && path !== '/phone' && !VOTES_PATH_REGEX.test(path)) {
+      throw new ValidationError(`disallowed patch path: ${path}`)
+    }
+
+    if (path === '/name' && 'value' in op) {
+      const name = op.value as string
+      if (typeof name === 'string' && name.length > 50) {
+        throw new ValidationError('name must be 50 characters or fewer')
+      }
+    }
+
+    if (path === '/phone' && 'value' in op) {
+      const phone = op.value as string
+      if (typeof phone === 'string' && !PHONE_REGEX.test(phone)) {
+        throw new ValidationError('phone must match format +1XXXXXXXXXX')
+      }
+    }
+  }
+
+  return ops
+}
+
+export const parseLatLng = (event: APIGatewayProxyEventV2): LatLng => {
+  const params = event.queryStringParameters ?? {}
+  return formatLatLng({
+    latitude: parseFloat(params.latitude as string),
+    longitude: parseFloat(params.longitude as string),
+  })
+}
+
+export const extractRecaptchaToken = (event: APIGatewayProxyEventV2): string => {
+  const token = event.headers['x-recaptcha-token']
+  if (!token) {
+    throw new ValidationError('x-recaptcha-token header is required')
+  }
+  return token
+}
+
+export const parseShareBody = (event: APIGatewayProxyEventV2): ShareInput => {
+  const body = parseEventBody(event) as Record<string, unknown>
+
+  if (typeof body.phone !== 'string' || !PHONE_REGEX.test(body.phone)) {
+    throw new ValidationError('phone must match format +1XXXXXXXXXX')
+  }
+
+  if (body.type !== 'text') {
+    throw new ValidationError('type must be "text"')
+  }
+
+  return { phone: body.phone, type: 'text' }
+}
+
+export const parseSubscribeBody = (event: APIGatewayProxyEventV2): SubscribeInput => {
+  const body = parseEventBody(event) as Record<string, unknown>
+
+  if (typeof body.userId !== 'string' || body.userId.trim().length === 0) {
+    throw new ValidationError('userId is required')
+  }
+
+  if (typeof body.roundId !== 'number' || !Number.isInteger(body.roundId) || body.roundId < 0) {
+    throw new ValidationError('roundId must be a non-negative integer')
+  }
+
+  return { roundId: body.roundId, userId: body.userId }
+}
+
+export const parseCloseRoundInput = (event: APIGatewayProxyEventV2): CloseRoundInput => {
+  const roundIdStr = event.pathParameters?.roundId
+  const roundId = Number(roundIdStr)
+
+  if (roundIdStr === undefined || isNaN(roundId) || !Number.isInteger(roundId) || roundId < 0) {
+    throw new ValidationError('roundId path parameter must be a non-negative integer')
+  }
+
+  return { roundId }
+}

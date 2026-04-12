@@ -31,6 +31,7 @@
     "paths": {
       "@assets/*": ["src/assets/*"],
       "@config": ["src/config"],
+      "@errors": ["src/errors"],
       "@events/*": ["events/*"],
       "@handlers/*": ["src/handlers/*"],
       "@services/*": ["src/services/*"],

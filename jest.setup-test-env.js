@@ -1,15 +1,7 @@
-// Cognito
-
-process.env.USER_POOL_ID = 'us-east-2_8765redfghuyt'
-
 // DynamoDB
 
-process.env.DYNAMODB_CHOICES_TABLE_NAME = 'choices-table'
-process.env.DYNAMODB_DECISIONS_TABLE_NAME = 'decision-table'
-process.env.DYNAMODB_SESSIONS_TABLE_NAME = 'session-table'
-
-process.env.DECISION_EXPIRE_HOURS = '30'
-process.env.SESSION_EXPIRE_HOURS = '30'
+process.env.DYNAMODB_TABLE_NAME = 'choosee-table'
+process.env.SESSION_EXPIRE_HOURS = '24'
 
 // Google
 
@@ -18,10 +10,17 @@ process.env.GOOGLE_IMAGE_COUNT = '5'
 process.env.GOOGLE_IMAGE_MAX_HEIGHT = '300'
 process.env.GOOGLE_IMAGE_MAX_WIDTH = '400'
 
-// ID generator
+// Session
 
-process.env.ID_MAX_LENGTH = '4'
-process.env.ID_MIN_LENGTH = '3'
+process.env.MAX_USERS_PER_SESSION = '10'
+process.env.CREATE_SESSION_FUNCTION_NAME = 'create-session-lambda'
+process.env.CREATE_SESSION_TIMEOUT_MS = '10000'
+
+// Radius
+
+process.env.RADIUS_MIN_MILES = '1'
+process.env.RADIUS_MAX_MILES = '30'
+process.env.RADIUS_DEFAULT_MILES = '15'
 
 // reCAPTCHA
 
@@ -29,6 +28,7 @@ process.env.RECAPTCHA_SECRET_KEY = 'ertyuiknbghj'
 
 // SMS Queue API
 
-process.env.CORS_DOMAIN = 'http://choosee.bowland.link'
+process.env.CORS_DOMAIN = 'https://choosee.bowland.link'
 process.env.SMS_API_KEY = '3edfgr4ertyjkijhg8'
 process.env.SMS_API_URL = 'https://sms-api.dbowland.com/v1'
+process.env.SMS_RATE_LIMIT_PER_USER = '5'

@@ -1,141 +1,278 @@
-import { DynamoDB, GetItemCommand, PutItemCommand, PutItemOutput, QueryCommand } from '@aws-sdk/client-dynamodb'
-
 import {
-  decisionExpireHours,
-  dynamodbChoicesTable,
-  dynamodbDecisionsTableName,
-  dynamodbSessionsTableName,
-} from '../config'
-import { Choice, Decision, Session } from '../types'
+  ConditionalCheckFailedException,
+  DynamoDB,
+  GetItemCommand,
+  PutItemCommand,
+  QueryCommand,
+  TransactionCanceledException,
+  TransactWriteItemsCommand,
+  UpdateItemCommand,
+} from '@aws-sdk/client-dynamodb'
+
+import { dynamodbTableName } from '../config'
+import { ConflictError, NotFoundError, RateLimitError } from '../errors'
+import { ChoicesRecord, SessionRecord, UserRecord, VersionedSession } from '../types'
 import { xrayCapture } from '../utils/logging'
 
 const dynamodb = xrayCapture(new DynamoDB({ apiVersion: '2012-08-10' }))
 
-// hours * 60 minutes / hour * 60 seconds / minute = 3_600
-const DECISION_EXPIRATION_DURATION = decisionExpireHours * 3_600
+/* Session */
 
-const getTimeInSeconds = () => Math.floor(Date.now() / 1000)
-
-/* Choices */
-
-export const getChoiceById = async (choiceId: string): Promise<Choice> => {
+export const getSession = async (sessionId: string): Promise<VersionedSession> => {
   const command = new GetItemCommand({
     Key: {
-      ChoiceId: {
-        S: `${choiceId}`,
-      },
+      PK: { S: sessionId },
+      SK: { S: 'SESSION' },
     },
-    TableName: dynamodbChoicesTable,
+    TableName: dynamodbTableName,
   })
   const response = await dynamodb.send(command)
-  return JSON.parse(response.Item.Data.S)
+  if (!response.Item?.Data?.S) {
+    throw new NotFoundError('Session not found')
+  }
+  const session: SessionRecord = JSON.parse(response.Item.Data.S)
+  const version = response.Item.version?.N ? parseInt(response.Item.version.N, 10) : 0
+  const users = response.Item.users?.L?.map((item: { S: string }) => item.S) ?? []
+  return { session, users, version }
 }
 
-export const setChoiceById = async (choiceId: string, choice: Choice): Promise<PutItemOutput> => {
+export const putSession = async (sessionId: string, session: SessionRecord): Promise<void> => {
   const command = new PutItemCommand({
     Item: {
-      ChoiceId: {
-        S: `${choiceId}`,
-      },
-      Data: {
-        S: JSON.stringify(choice),
-      },
-      Expiration: {
-        N: `${choice.expiration}`,
-      },
+      currentRound: { N: `${session.currentRound}` },
+      Data: { S: JSON.stringify(session) },
+      expiration: { N: `${session.expiration}` },
+      PK: { S: sessionId },
+      SK: { S: 'SESSION' },
+      version: { N: '0' },
     },
-    TableName: dynamodbChoicesTable,
+    TableName: dynamodbTableName,
   })
-  return dynamodb.send(command)
+  await dynamodb.send(command)
 }
 
-/* Decisions */
-
-export const getDecisionById = async (sessionId: string, userId: string): Promise<Decision> => {
-  const command = new GetItemCommand({
-    Key: {
-      SessionId: {
-        S: `${sessionId}`,
-      },
-      UserId: {
-        S: `${userId}`,
-      },
+export const putNewSession = async (sessionId: string, session: SessionRecord): Promise<void> => {
+  const command = new PutItemCommand({
+    ConditionExpression: 'attribute_not_exists(PK)',
+    Item: {
+      currentRound: { N: `${session.currentRound}` },
+      Data: { S: JSON.stringify(session) },
+      expiration: { N: `${session.expiration}` },
+      PK: { S: sessionId },
+      SK: { S: 'SESSION' },
+      version: { N: '0' },
     },
-    TableName: dynamodbDecisionsTableName,
+    TableName: dynamodbTableName,
   })
-  const response = await dynamodb.send(command)
   try {
-    return JSON.parse(response.Item.Data.S)
-  } catch (e) {
-    return { decisions: {}, expiration: getTimeInSeconds() + DECISION_EXPIRATION_DURATION } as Decision
+    await dynamodb.send(command)
+  } catch (error) {
+    if (error instanceof ConditionalCheckFailedException) {
+      throw new ConflictError('Session ID already exists')
+    }
+    throw error
   }
 }
 
-export const setDecisionById = async (sessionId: string, userId: string, data: Decision): Promise<PutItemOutput> => {
-  const command = new PutItemCommand({
-    Item: {
-      Data: {
-        S: JSON.stringify(data),
-      },
-      Expiration: {
-        N: `${data.expiration}`,
-      },
-      SessionId: {
-        S: `${sessionId}`,
-      },
-      UserId: {
-        S: `${userId}`,
-      },
+export const updateSession = async (
+  sessionId: string,
+  expectedVersion: number,
+  session: SessionRecord,
+): Promise<number> => {
+  const newVersion = expectedVersion + 1
+  const command = new UpdateItemCommand({
+    ConditionExpression: '#version = :expectedVersion',
+    ExpressionAttributeNames: {
+      '#currentRound': 'currentRound',
+      '#data': 'Data',
+      '#version': 'version',
     },
-    TableName: dynamodbDecisionsTableName,
+    ExpressionAttributeValues: {
+      ':data': { S: JSON.stringify(session) },
+      ':expectedVersion': { N: `${expectedVersion}` },
+      ':newRound': { N: `${session.currentRound}` },
+      ':newVersion': { N: `${newVersion}` },
+    },
+    Key: {
+      PK: { S: sessionId },
+      SK: { S: 'SESSION' },
+    },
+    TableName: dynamodbTableName,
+    UpdateExpression: 'SET #data = :data, #currentRound = :newRound, #version = :newVersion',
   })
-  return dynamodb.send(command)
+
+  try {
+    await dynamodb.send(command)
+    return newVersion
+  } catch (error) {
+    if (error instanceof ConditionalCheckFailedException) {
+      throw new ConflictError('Session has been modified')
+    }
+    throw error
+  }
 }
 
-/* Sessions */
+/* Choices */
 
-export const getSessionById = async (sessionId: string): Promise<Session> => {
+export const getChoices = async (sessionId: string): Promise<ChoicesRecord> => {
   const command = new GetItemCommand({
     Key: {
-      SessionId: {
-        S: `${sessionId}`,
-      },
+      PK: { S: sessionId },
+      SK: { S: 'CHOICES' },
     },
-    TableName: dynamodbSessionsTableName,
+    TableName: dynamodbTableName,
   })
   const response = await dynamodb.send(command)
+  if (!response.Item?.Data?.S) {
+    throw new NotFoundError('Choices not found')
+  }
   return JSON.parse(response.Item.Data.S)
 }
 
-export const queryUserIdsBySessionId = async (sessionId: string): Promise<string[]> => {
-  const command = new QueryCommand({
-    ExpressionAttributeValues: {
-      ':v1': {
-        S: sessionId,
-      },
-    },
-    KeyConditionExpression: 'SessionId = :v1',
-    ProjectionExpression: 'UserId',
-    TableName: dynamodbDecisionsTableName,
-  })
-  const response = await dynamodb.send(command)
-  return response.Items.map((item: { UserId: { S: string } }) => item.UserId.S)
-}
-
-export const setSessionById = async (sessionId: string, data: Session): Promise<PutItemOutput> => {
+export const putChoices = async (sessionId: string, choices: ChoicesRecord): Promise<void> => {
   const command = new PutItemCommand({
     Item: {
-      Data: {
-        S: JSON.stringify(data),
-      },
-      Expiration: {
-        N: `${data.expiration}`,
-      },
-      SessionId: {
-        S: `${sessionId}`,
-      },
+      Data: { S: JSON.stringify(choices) },
+      expiration: { N: `${choices.expiration}` },
+      PK: { S: sessionId },
+      SK: { S: 'CHOICES' },
     },
-    TableName: dynamodbSessionsTableName,
+    TableName: dynamodbTableName,
   })
-  return dynamodb.send(command)
+  await dynamodb.send(command)
+}
+
+/* Users */
+
+export const getUser = async (sessionId: string, userId: string): Promise<UserRecord> => {
+  const command = new GetItemCommand({
+    Key: {
+      PK: { S: sessionId },
+      SK: { S: `USER#${userId}` },
+    },
+    TableName: dynamodbTableName,
+  })
+  const response = await dynamodb.send(command)
+  if (!response.Item?.Data?.S) {
+    throw new NotFoundError('User not found')
+  }
+  return JSON.parse(response.Item.Data.S)
+}
+
+export const getAllUsers = async (sessionId: string): Promise<UserRecord[]> => {
+  const command = new QueryCommand({
+    ExpressionAttributeValues: {
+      ':pk': { S: sessionId },
+      ':skPrefix': { S: 'USER#' },
+    },
+    KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
+    TableName: dynamodbTableName,
+  })
+  const response = await dynamodb.send(command)
+  return (response.Items ?? []).map((item: { Data: { S: string } }) => JSON.parse(item.Data.S))
+}
+
+export const createUser = async (sessionId: string, user: UserRecord): Promise<void> => {
+  const command = new TransactWriteItemsCommand({
+    TransactItems: [
+      {
+        Put: {
+          ConditionExpression: 'attribute_not_exists(PK)',
+          Item: {
+            Data: { S: JSON.stringify(user) },
+            expiration: { N: `${user.expiration}` },
+            PK: { S: sessionId },
+            SK: { S: `USER#${user.userId}` },
+            textsSent: { N: `${user.textsSent}` },
+          },
+          TableName: dynamodbTableName,
+        },
+      },
+      {
+        Update: {
+          ExpressionAttributeNames: { '#users': 'users' },
+          ExpressionAttributeValues: {
+            ':emptyList': { L: [] },
+            ':newUser': { L: [{ S: user.userId }] },
+          },
+          Key: {
+            PK: { S: sessionId },
+            SK: { S: 'SESSION' },
+          },
+          TableName: dynamodbTableName,
+          UpdateExpression: 'SET #users = list_append(if_not_exists(#users, :emptyList), :newUser)',
+        },
+      },
+    ],
+  })
+  try {
+    await dynamodb.send(command)
+  } catch (error) {
+    if (error instanceof TransactionCanceledException) {
+      throw new ConflictError('User ID already exists')
+    }
+    throw error
+  }
+}
+
+export const updateUser = async (sessionId: string, userId: string, user: UserRecord): Promise<void> => {
+  const command = new UpdateItemCommand({
+    ExpressionAttributeNames: { '#data': 'Data' },
+    ExpressionAttributeValues: {
+      ':data': { S: JSON.stringify(user) },
+    },
+    Key: {
+      PK: { S: sessionId },
+      SK: { S: `USER#${userId}` },
+    },
+    TableName: dynamodbTableName,
+    UpdateExpression: 'SET #data = :data',
+  })
+  await dynamodb.send(command)
+}
+
+/**
+ * Atomically increment textsSent if below the limit.
+ * Throws RateLimitError if the user has already hit the cap.
+ */
+export const incrementTextsSent = async (sessionId: string, userId: string, limit: number): Promise<void> => {
+  const command = new UpdateItemCommand({
+    ConditionExpression: '#textsSent < :limit',
+    ExpressionAttributeNames: {
+      '#textsSent': 'textsSent',
+    },
+    ExpressionAttributeValues: {
+      ':increment': { N: '1' },
+      ':limit': { N: `${limit}` },
+    },
+    Key: {
+      PK: { S: sessionId },
+      SK: { S: `USER#${userId}` },
+    },
+    TableName: dynamodbTableName,
+    UpdateExpression: 'SET #textsSent = #textsSent + :increment',
+  })
+
+  try {
+    await dynamodb.send(command)
+  } catch (error) {
+    if (error instanceof ConditionalCheckFailedException) {
+      throw new RateLimitError('SMS rate limit exceeded')
+    }
+    throw error
+  }
+}
+
+/* Query */
+
+export const querySession = async (sessionId: string): Promise<Record<string, any>[]> => {
+  const command = new QueryCommand({
+    ExpressionAttributeValues: {
+      ':pk': { S: sessionId },
+    },
+    KeyConditionExpression: 'PK = :pk',
+    TableName: dynamodbTableName,
+  })
+  const response = await dynamodb.send(command)
+  return (response.Items ?? []).map((item: { Data: { S: string } }) => JSON.parse(item.Data.S))
 }
