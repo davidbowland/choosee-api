@@ -46,6 +46,7 @@ describe('patch-user', () => {
       expect(result).toEqual(expect.objectContaining(status.OK))
       const body = JSON.parse((result as { body: string }).body)
       expect(body.name).toBe('Alice')
+      expect(body.googleSub).toBeUndefined()
     })
 
     it('should return OK with updated user after phone patch', async () => {

@@ -156,6 +156,7 @@ export const userId = 'fuzzy-penguin'
 
 export const userRecord: UserRecord = {
   userId: 'fuzzy-penguin',
+  googleSub: null,
   name: null,
   phone: null,
   subscribedRounds: [],

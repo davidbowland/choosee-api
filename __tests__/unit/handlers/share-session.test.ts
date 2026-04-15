@@ -23,13 +23,19 @@ describe('share-session', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
   const futureExpiration = Math.floor(Date.now() / 1000) + 86400
   const futureSession = { ...session, expiration: futureExpiration }
-  const sharingUser: UserRecord = { ...userRecord, expiration: futureExpiration, textsSent: 0 }
+  const sharingUser: UserRecord = {
+    ...userRecord,
+    expiration: futureExpiration,
+    googleSub: 'google-uid-123',
+    textsSent: 0,
+  }
 
   beforeAll(() => {
     jest.mocked(dynamodb).getSession.mockResolvedValue({ session: futureSession, users: ['fuzzy-penguin'], version: 0 })
     jest.mocked(dynamodb).getUser.mockResolvedValue(sharingUser)
-    jest.mocked(dynamodb).getAllUsers.mockResolvedValue([{ ...sharingUser, phone: null }])
+    jest.mocked(dynamodb).getAllUsers.mockResolvedValue([{ ...sharingUser }])
     jest.mocked(dynamodb).createUser.mockResolvedValue(undefined)
+    jest.mocked(dynamodb).updateUser.mockResolvedValue(undefined)
     jest.mocked(dynamodb).incrementTextsSent.mockResolvedValue(undefined)
     jest.mocked(sms).sendSms.mockResolvedValue({} as any)
     jest.mocked(idGenerator).generateUserId.mockReturnValue('brave-tiger')
@@ -43,7 +49,58 @@ describe('share-session', () => {
       expect(body.userId).toBe('brave-tiger')
     })
 
+    it('should return 401 when no auth context is present', async () => {
+      const unauthEvent = {
+        ...event,
+        requestContext: { http: event.requestContext.http },
+      } as unknown as APIGatewayProxyEventV2
+      const result = await handler(unauthEvent)
+      expect(result).toEqual(expect.objectContaining({ statusCode: 401 }))
+      const body = JSON.parse((result as { body: string }).body)
+      expect(body.message).toContain('Authentication required')
+    })
+
+    it('should allow sharing when sharing user has no phone set', async () => {
+      jest.mocked(dynamodb).getUser.mockResolvedValueOnce({ ...sharingUser, phone: null })
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining(status.CREATED))
+    })
+
+    it('should return 403 when caller googleSub does not match sharing user', async () => {
+      jest.mocked(dynamodb).getUser.mockResolvedValueOnce({ ...sharingUser, googleSub: 'different-uid' })
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining({ statusCode: 403 }))
+      const body = JSON.parse((result as { body: string }).body)
+      expect(body.message).toContain('your own user')
+    })
+
+    it('should backfill googleSub and allow sharing when sharing user has null googleSub', async () => {
+      jest.mocked(dynamodb).getUser.mockResolvedValueOnce({ ...sharingUser, googleSub: null })
+      jest.mocked(dynamodb).updateUser.mockClear()
+      const result = await handler(event)
+      expect(result).toEqual(expect.objectContaining(status.CREATED))
+      expect(dynamodb.updateUser).toHaveBeenCalledWith(
+        sessionId,
+        'fuzzy-penguin',
+        expect.objectContaining({ googleSub: 'google-uid-123' }),
+      )
+    })
+
+    it('should allow sharing when authenticated with minimal claims', async () => {
+      const minimalAuthEvent = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: { jwt: { claims: { sub: 'google-uid-123' } } },
+        },
+      } as unknown as APIGatewayProxyEventV2
+      const result = await handler(minimalAuthEvent)
+      expect(result).toEqual(expect.objectContaining(status.CREATED))
+    })
+
     it('should call incrementTextsSent before creating user', async () => {
+      jest.mocked(dynamodb).incrementTextsSent.mockClear()
+      jest.mocked(dynamodb).createUser.mockClear()
       await handler(event)
       const incrementOrder = jest.mocked(dynamodb).incrementTextsSent.mock.invocationCallOrder[0]
       const createOrder = jest.mocked(dynamodb).createUser.mock.invocationCallOrder[0]
@@ -51,11 +108,13 @@ describe('share-session', () => {
     })
 
     it('should call incrementTextsSent with sessionId, userId, and limit', async () => {
+      jest.mocked(dynamodb).incrementTextsSent.mockClear()
       await handler(event)
       expect(dynamodb.incrementTextsSent).toHaveBeenCalledWith(sessionId, 'fuzzy-penguin', expect.any(Number))
     })
 
     it('should create user with recipient phone number', async () => {
+      jest.mocked(dynamodb).createUser.mockClear()
       await handler(event)
       expect(dynamodb.createUser).toHaveBeenCalledWith(
         sessionId,
@@ -64,6 +123,7 @@ describe('share-session', () => {
     })
 
     it('should send SMS with session link', async () => {
+      jest.mocked(sms).sendSms.mockClear()
       await handler(event)
       expect(sms.sendSms).toHaveBeenCalledWith(
         '+15551234567',

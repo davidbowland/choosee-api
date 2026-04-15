@@ -3,6 +3,7 @@ import { SessionRecord, UserRecord } from '@types'
 
 const makeUser = (overrides: Partial<UserRecord> = {}): UserRecord => ({
   userId: 'test-user',
+  googleSub: null,
   name: null,
   phone: null,
   subscribedRounds: [],

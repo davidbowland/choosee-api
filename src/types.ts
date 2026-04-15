@@ -102,6 +102,7 @@ export interface ChoiceDetail {
 
 export interface UserRecord {
   userId: string
+  googleSub: string | null
   name: string | null
   phone: string | null
   subscribedRounds: number[]
@@ -152,6 +153,15 @@ export interface SubscribeInput {
 
 export interface CloseRoundInput {
   roundId: number
+}
+
+// Auth
+
+export interface AuthContext {
+  isAuthenticated: boolean
+  googleSub: string | null
+  googleName?: string
+  googlePhone?: string
 }
 
 // SMS

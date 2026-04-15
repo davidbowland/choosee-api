@@ -5,6 +5,7 @@ import { advanceRound, countVotersSubmitted, shouldAutoAdvance } from '../servic
 import { getAllUsers, getSession, getUser, updateSession, updateUser } from '../services/dynamodb'
 import { notifyNewRound, notifyWinner } from '../services/notifications'
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, PatchOperation, SessionRecord, UserRecord } from '../types'
+import { extractAuthContext } from '../utils/auth'
 import { serializeValidationError } from '../utils/errors'
 import { parseUserPatch } from '../utils/events'
 import { log, logError } from '../utils/logging'
@@ -78,6 +79,16 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
     const patchResult = applyJsonPatch(cloned, ops, true, false)
     const updatedUser = patchResult.newDocument as UserRecord
 
+    // If the name is still null after applying patch ops and the caller is authenticated,
+    // default from their Google account (graceful degradation for mid-session sign-in)
+    const auth = extractAuthContext(event)
+    if (updatedUser.name === null && auth.googleName) {
+      updatedUser.name = auth.googleName
+    }
+    if (updatedUser.googleSub === null && auth.googleSub) {
+      updatedUser.googleSub = auth.googleSub
+    }
+
     await updateUser(sessionId, userId, updatedUser)
 
     if (hasVoteOps(ops)) {
@@ -129,7 +140,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       }
     }
 
-    return { ...status.OK, body: JSON.stringify(updatedUser) }
+    const { googleSub: _, ...responseUser } = updatedUser
+    return { ...status.OK, body: JSON.stringify(responseUser) }
   } catch (error) {
     if (error instanceof NotFoundError) return status.NOT_FOUND
     if (error instanceof ValidationError) return { ...status.BAD_REQUEST, body: serializeValidationError(error) }

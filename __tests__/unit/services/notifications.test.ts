@@ -17,6 +17,7 @@ jest.mock('@utils/logging', () => ({
 
 const baseUser: UserRecord = {
   userId: 'fuzzy-penguin',
+  googleSub: null,
   name: null,
   phone: '+15551234567',
   subscribedRounds: [0, 1],

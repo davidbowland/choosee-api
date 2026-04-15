@@ -8,6 +8,6 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "If no code was written or modified during this response, reply with only: 'No code changes to review.' Otherwise, review the code changes just made as a devil's advocate. Be critical and thorough. Check: 1) Will this actually work in production? Look for edge cases, race conditions, and failure modes. 2) Is the code easy to read and understand? Would a new team member follow it? 3) Does it follow best practices for the language and framework? 4) Is domain separation clean — are responsibilities in the right layers? Flag all non-trivial concerns. Be honest, not polite. Number the items and ask which should be fixed."
+    "prompt": "If no code was written or modified during this response, reply with only: 'No code changes to review.' Otherwise, review the code changes just made as a devil's advocate. Be critical and thorough. Check: 1) Will this actually work in production? Look for edge cases, race conditions, and failure modes. 2) Is the code easy to read and understand? Would a new team member follow it? 3) Does it follow best practices for the language and framework? 4) Is domain separation clean — are responsibilities in the right layers? 5) Is endpoints.rest and other documentation up-to-date? Flag all non-trivial concerns. Be honest, not polite. Number the items and ask which should be fixed."
   }
 }

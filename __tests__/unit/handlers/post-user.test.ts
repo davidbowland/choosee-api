@@ -38,6 +38,52 @@ describe('post-user', () => {
       expect(body.phone).toBeNull()
       expect(body.subscribedRounds).toEqual([])
       expect(body.textsSent).toBe(0)
+      expect(body.googleSub).toBeUndefined()
+    })
+
+    it('should set name from Google auth context when authenticated', async () => {
+      const authedEvent = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: { jwt: { claims: { name: 'Google User' } } },
+        },
+      } as unknown as APIGatewayProxyEventV2
+      const result = await handler(authedEvent)
+      const body = JSON.parse((result as { body: string }).body)
+      expect(body.name).toBe('Google User')
+    })
+
+    it('should set phone from Google auth context when authenticated', async () => {
+      const authedEvent = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: { jwt: { claims: { name: 'Google User', phone_number: '+15559999999' } } },
+        },
+      } as unknown as APIGatewayProxyEventV2
+      const result = await handler(authedEvent)
+      const body = JSON.parse((result as { body: string }).body)
+      expect(body.phone).toBe('+15559999999')
+    })
+
+    it('should ignore invalid phone format from Google auth context', async () => {
+      const authedEvent = {
+        ...event,
+        requestContext: {
+          ...event.requestContext,
+          authorizer: { jwt: { claims: { name: 'Google User', phone_number: '+4412345678' } } },
+        },
+      } as unknown as APIGatewayProxyEventV2
+      const result = await handler(authedEvent)
+      const body = JSON.parse((result as { body: string }).body)
+      expect(body.phone).toBeNull()
+    })
+
+    it('should set name to null when not authenticated', async () => {
+      const result = await handler(event)
+      const body = JSON.parse((result as { body: string }).body)
+      expect(body.name).toBeNull()
     })
 
     it('should initialize votes with empty arrays for all rounds up to currentRound', async () => {

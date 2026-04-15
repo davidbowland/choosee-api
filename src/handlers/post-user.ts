@@ -2,6 +2,7 @@ import { maxUsersPerSession } from '../config'
 import { MaxUsersError, NotFoundError, ValidationError } from '../errors'
 import { createUser, getSession } from '../services/dynamodb'
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, UserRecord } from '../types'
+import { extractAuthContext } from '../utils/auth'
 import { generateUserId } from '../utils/id-generator'
 import { log, logError } from '../utils/logging'
 import status from '../utils/status'
@@ -21,11 +22,15 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
     }
 
     const userId = generateUserId(users)
+    const auth = extractAuthContext(event)
+
+    const phone = auth.googlePhone && /^\+1[2-9]\d{9}$/.test(auth.googlePhone) ? auth.googlePhone : null
 
     const user: UserRecord = {
       expiration: session.expiration,
-      name: null,
-      phone: null,
+      googleSub: auth.googleSub,
+      name: auth.googleName ?? null,
+      phone,
       subscribedRounds: [],
       textsSent: 0,
       userId,
@@ -35,9 +40,10 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
     await createUser(sessionId, user)
     log('User created', { sessionId, userId })
 
+    const { googleSub: _, ...responseUser } = user
     return {
       ...status.CREATED,
-      body: JSON.stringify(user),
+      body: JSON.stringify(responseUser),
     }
   } catch (error) {
     if (error instanceof NotFoundError) return status.NOT_FOUND
