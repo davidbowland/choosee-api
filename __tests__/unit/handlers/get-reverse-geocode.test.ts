@@ -68,8 +68,8 @@ describe('get-reverse-geocode', () => {
       expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
     })
 
-    it('should return INTERNAL_SERVER_ERROR when getCaptchaScore rejects', async () => {
-      jest.mocked(recaptcha).getCaptchaScore.mockRejectedValueOnce(new Error('reCAPTCHA response missing score'))
+    it('should return INTERNAL_SERVER_ERROR when getCaptchaScore rejects with a network error', async () => {
+      jest.mocked(recaptcha).getCaptchaScore.mockRejectedValueOnce(new Error('ECONNREFUSED'))
       const result = await handler(event)
       expect(result).toEqual(expect.objectContaining(status.INTERNAL_SERVER_ERROR))
     })
