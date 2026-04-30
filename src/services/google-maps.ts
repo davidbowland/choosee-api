@@ -73,9 +73,16 @@ const searchNearbyFieldMask = {
   otherArgs: {
     headers: {
       'X-Goog-FieldMask':
-        'places.id,places.types,places.nationalPhoneNumber,places.internationalPhoneNumber,places.formattedAddress,places.rating,places.websiteUri,places.currentOpeningHours,places.priceLevel,places.userRatingCount,places.priceLevel,places.displayName,places.editorialSummary,places.photos,places.generativeSummary,places.priceRange',
+        'places.id,places.types,places.nationalPhoneNumber,places.internationalPhoneNumber,places.formattedAddress,places.rating,places.websiteUri,places.currentOpeningHours,places.priceLevel,places.userRatingCount,places.priceLevel,places.displayName,places.editorialSummary,places.photos,places.generativeSummary,places.priceRange,places.utcOffsetMinutes',
     },
   },
+}
+
+interface GoogleOpeningHoursPeriodPoint {
+  day: number
+  hour: number
+  minute: number
+  date?: { year: number; month: number; day: number }
 }
 
 interface GooglePlace {
@@ -84,12 +91,17 @@ interface GooglePlace {
   nationalPhoneNumber?: string | null
   internationalPhoneNumber?: string | null
   displayName?: { text?: string | null } | null
-  currentOpeningHours?: { weekdayDescriptions?: string[] | null } | null
+  currentOpeningHours?: {
+    openNow?: boolean | null
+    weekdayDescriptions?: string[] | null
+    periods?: { open?: GoogleOpeningHoursPeriodPoint; close?: GoogleOpeningHoursPeriodPoint }[] | null
+  } | null
   photos?: { name?: string | null }[] | null
   priceLevel?: string | null
   rating?: number | null
   types?: string[] | null
   userRatingCount?: number | null
+  utcOffsetMinutes?: number | null
   websiteUri?: string | null
 }
 
@@ -105,6 +117,14 @@ const toRawPlace = (place: GooglePlace): RawPlaceWithRefs => ({
   internationalPhoneNumber: place.internationalPhoneNumber,
   name: place.displayName?.text,
   openHours: place.currentOpeningHours?.weekdayDescriptions,
+  openNow: place.currentOpeningHours?.openNow,
+  openingHoursPeriods: place.currentOpeningHours?.periods
+    ?.filter((p) => p.open != null)
+    .map((p) => ({
+      open: { day: p.open!.day, hour: p.open!.hour, minute: p.open!.minute, date: p.open!.date },
+      close: p.close ? { day: p.close.day, hour: p.close.hour, minute: p.close.minute, date: p.close.date } : undefined,
+    })),
+  utcOffsetMinutes: place.utcOffsetMinutes,
   photoRefs: place.photos?.slice(0, googleImageCount).map((p) => `${p.name}/media`) ?? [],
   placeId: place.id as string,
   priceLevel: place.priceLevel as PriceLevel,
@@ -230,6 +250,9 @@ export const fetchPlaceResults = async (
     internationalPhoneNumber: place.internationalPhoneNumber,
     name: place.name,
     openHours: place.openHours,
+    openNow: place.openNow,
+    openingHoursPeriods: place.openingHoursPeriods,
+    utcOffsetMinutes: place.utcOffsetMinutes,
     photos: photosByPlace[i],
     placeId: place.placeId,
     priceLevel: place.priceLevel,

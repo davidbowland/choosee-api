@@ -34,6 +34,7 @@ const buildSession = (
     input.latitude !== undefined && input.longitude !== undefined
       ? { latitude: input.latitude, longitude: input.longitude }
       : null,
+  filterClosingSoon: input.filterClosingSoon === true,
   radius: milesToMeters(input.radiusMiles),
   rankBy: input.rankBy,
   sessionId,

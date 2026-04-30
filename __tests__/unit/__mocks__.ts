@@ -28,6 +28,38 @@ export const place1: PlaceDetails = {
     'Saturday: 11:00 AM – 10:00 PM',
     'Sunday: 11:00 AM – 9:00 PM',
   ],
+  openNow: true,
+  openingHoursPeriods: [
+    {
+      open: { day: 0, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 2 } },
+      close: { day: 0, hour: 21, minute: 0, date: { year: 2025, month: 3, day: 2 } },
+    },
+    {
+      open: { day: 1, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 3 } },
+      close: { day: 1, hour: 21, minute: 0, date: { year: 2025, month: 3, day: 3 } },
+    },
+    {
+      open: { day: 2, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 4 } },
+      close: { day: 2, hour: 22, minute: 0, date: { year: 2025, month: 3, day: 4 } },
+    },
+    {
+      open: { day: 3, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 5 } },
+      close: { day: 3, hour: 22, minute: 0, date: { year: 2025, month: 3, day: 5 } },
+    },
+    {
+      open: { day: 4, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 6 } },
+      close: { day: 4, hour: 22, minute: 0, date: { year: 2025, month: 3, day: 6 } },
+    },
+    {
+      open: { day: 5, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 7 } },
+      close: { day: 5, hour: 22, minute: 0, date: { year: 2025, month: 3, day: 7 } },
+    },
+    {
+      open: { day: 6, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 8 } },
+      close: { day: 6, hour: 22, minute: 0, date: { year: 2025, month: 3, day: 8 } },
+    },
+  ],
+  utcOffsetMinutes: undefined,
   photos: ['a-picture-stream', 'a-picture-stream', 'a-picture-stream', 'a-picture-stream', 'a-picture-stream'],
   placeId: 'ChIJ34KrisW33IcRdVRBVG0IFrA',
   priceLevel: 'PRICE_LEVEL_MODERATE',
@@ -51,6 +83,38 @@ export const place2: PlaceDetails = {
     'Saturday: 11:00 AM – 10:00 PM',
     'Sunday: 11:00 AM – 9:00 PM',
   ],
+  openNow: true,
+  openingHoursPeriods: [
+    {
+      open: { day: 0, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 2 } },
+      close: { day: 0, hour: 21, minute: 0, date: { year: 2025, month: 3, day: 2 } },
+    },
+    {
+      open: { day: 1, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 3 } },
+      close: { day: 1, hour: 21, minute: 0, date: { year: 2025, month: 3, day: 3 } },
+    },
+    {
+      open: { day: 2, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 4 } },
+      close: { day: 2, hour: 21, minute: 0, date: { year: 2025, month: 3, day: 4 } },
+    },
+    {
+      open: { day: 3, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 5 } },
+      close: { day: 3, hour: 21, minute: 0, date: { year: 2025, month: 3, day: 5 } },
+    },
+    {
+      open: { day: 4, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 6 } },
+      close: { day: 4, hour: 21, minute: 0, date: { year: 2025, month: 3, day: 6 } },
+    },
+    {
+      open: { day: 5, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 7 } },
+      close: { day: 5, hour: 22, minute: 0, date: { year: 2025, month: 3, day: 7 } },
+    },
+    {
+      open: { day: 6, hour: 11, minute: 0, date: { year: 2025, month: 3, day: 8 } },
+      close: { day: 6, hour: 22, minute: 0, date: { year: 2025, month: 3, day: 8 } },
+    },
+  ],
+  utcOffsetMinutes: undefined,
   photos: [],
   placeId: 'ChIJk8cmpsa33IcRbKLpDn3le4g',
   priceLevel: 'PRICE_LEVEL_MODERATE',
@@ -85,6 +149,7 @@ export const session: SessionRecord = {
   exclude: ['breakfast_restaurant'],
   radius: 3757,
   rankBy: 'POPULARITY',
+  filterClosingSoon: false,
   totalRounds: 2,
   votersSubmitted: 0,
 }

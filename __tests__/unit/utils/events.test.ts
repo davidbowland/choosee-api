@@ -51,6 +51,7 @@ describe('events', () => {
   describe('parseNewSessionBody', () => {
     const validBody = {
       address: '123 Main St',
+      filterClosingSoon: false,
       radiusMiles: 5,
       rankBy: 'DISTANCE',
       type: ['restaurant'],
@@ -62,6 +63,7 @@ describe('events', () => {
       expect(result).toEqual({
         address: '123 Main St',
         exclude: [],
+        filterClosingSoon: false,
         radiusMiles: 5,
         rankBy: 'DISTANCE',
         type: ['restaurant'],
@@ -130,6 +132,39 @@ describe('events', () => {
 
     it('should throw on radiusMiles below min', () => {
       const event = makeEvent(withBody({ ...validBody, radiusMiles: 0.5 }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should parse filterClosingSoon true', () => {
+      const event = makeEvent(withBody({ ...validBody, filterClosingSoon: true }))
+      const result = parseNewSessionBody(event)
+      expect(result.filterClosingSoon).toBe(true)
+    })
+
+    it('should parse filterClosingSoon false', () => {
+      const event = makeEvent(withBody({ ...validBody, filterClosingSoon: false }))
+      const result = parseNewSessionBody(event)
+      expect(result.filterClosingSoon).toBe(false)
+    })
+
+    it('should throw when filterClosingSoon is missing', () => {
+      const { filterClosingSoon: _, ...bodyWithout } = validBody
+      const event = makeEvent(withBody(bodyWithout))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should throw when filterClosingSoon is a string', () => {
+      const event = makeEvent(withBody({ ...validBody, filterClosingSoon: 'true' }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should throw when filterClosingSoon is a number', () => {
+      const event = makeEvent(withBody({ ...validBody, filterClosingSoon: 1 }))
+      expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
+    })
+
+    it('should throw when filterClosingSoon is null', () => {
+      const event = makeEvent(withBody({ ...validBody, filterClosingSoon: null }))
       expect(() => parseNewSessionBody(event)).toThrow(ValidationError)
     })
 

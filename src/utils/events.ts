@@ -93,9 +93,14 @@ export const parseNewSessionBody = (event: APIGatewayProxyEventV2): NewSessionIn
     throw new ValidationError('latitude and longitude must both be present or both absent')
   }
 
+  if (typeof body.filterClosingSoon !== 'boolean') {
+    throw new ValidationError('filterClosingSoon is required and must be a boolean')
+  }
+
   const result: NewSessionInput = {
     address: body.address as string,
     exclude,
+    filterClosingSoon: body.filterClosingSoon,
     radiusMiles: body.radiusMiles as number,
     rankBy: body.rankBy as RankByType,
     type: body.type as string[],

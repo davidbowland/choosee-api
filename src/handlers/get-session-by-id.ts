@@ -18,6 +18,7 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       ...status.OK,
       body: JSON.stringify({
         ...session,
+        filterClosingSoon: session.filterClosingSoon === true,
         sessionId,
         voterCount: users.length,
       }),

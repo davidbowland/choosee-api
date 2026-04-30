@@ -4,6 +4,7 @@ import { getSession, putChoices, putSession } from '../services/dynamodb'
 import { fetchGeocodeResults, fetchPlaceResults } from '../services/google-maps'
 import { ChoiceDetail, ChoicesRecord, LatLng, PlaceDetails, RankByType } from '../types'
 import { log, logError } from '../utils/logging'
+import { filterClosingSoon } from '../utils/open-hours'
 
 const placeTypeDisplayMap = new Map(
   placeTypes.filter((pt) => pt.value !== 'restaurant').map((pt) => [pt.value, pt.display]),
@@ -16,6 +17,7 @@ interface CreateSessionEvent {
   exclude: string[]
   radius: number
   rankBy: RankByType
+  filterClosingSoon?: boolean
   latitude?: number
   longitude?: number
 }
@@ -81,6 +83,20 @@ export const handler = async (event: CreateSessionEvent): Promise<void> => {
         'Not enough restaurants found. Try a different location or broader search criteria.',
       )
       return
+    }
+
+    if (event.filterClosingSoon) {
+      const beforeCount = places.length
+      places = filterClosingSoon(places)
+      log('Closing-soon filter applied', { before: beforeCount, after: places.length })
+
+      if (places.length < 2) {
+        await setErrorMessage(
+          event.sessionId,
+          'Not enough restaurants are open right now (or staying open long enough). Try again later or disable the closing-soon filter.',
+        )
+        return
+      }
     }
 
     const choices: Record<string, ChoiceDetail> = Object.fromEntries(

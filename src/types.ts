@@ -21,12 +21,20 @@ export interface LatLng {
 
 // Place types
 
+export interface OpeningHoursPeriod {
+  open: { day: number; hour: number; minute: number; date?: { year: number; month: number; day: number } }
+  close?: { day: number; hour: number; minute: number; date?: { year: number; month: number; day: number } }
+}
+
 export interface PlaceDetails {
   formattedAddress?: string | null
   formattedPhoneNumber?: string | null
   internationalPhoneNumber?: string | null
   name?: string | null
   openHours?: string[] | null
+  openNow?: boolean | null
+  openingHoursPeriods?: OpeningHoursPeriod[] | null
+  utcOffsetMinutes?: number | null
   photos: string[]
   placeId: string
   priceLevel?: PriceLevel | null
@@ -70,6 +78,7 @@ export interface SessionRecord {
   exclude: string[]
   radius: number
   rankBy: RankByType
+  filterClosingSoon?: boolean
   totalRounds: number
   votersSubmitted: number
 }
@@ -137,6 +146,7 @@ export interface NewSessionInput {
   exclude: string[]
   radiusMiles: number
   rankBy: RankByType
+  filterClosingSoon: boolean
   latitude?: number
   longitude?: number
 }

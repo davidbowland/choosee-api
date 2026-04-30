@@ -49,6 +49,9 @@ x-recaptcha-token: {{choosee-api-recaptcha-token}}
 # rankBy: "POPULARITY" | "DISTANCE" | "ALL" (from GET /sessions/config sortOptions)
 # type: array of place type values (from GET /sessions/config placeTypes)
 # exclude: optional array of place type values to exclude
+# filterClosingSoon: required boolean. When true, filters out restaurants that are
+#   closed or closing within the next hour. Best-effort: places without structured
+#   hours data are kept if Google reports them as open.
 # latitude/longitude: optional — both or neither. If omitted, address is geocoded.
 #
 # Authenticated variant: POST /v1/sessions/authed (Cognito JWT)
@@ -62,13 +65,15 @@ x-recaptcha-token: {{choosee-api-recaptcha-token}}
   "type": ["restaurant"],
   "exclude": ["breakfast_restaurant"],
   "radiusMiles": 2.33,
-  "rankBy": "POPULARITY"
+  "rankBy": "POPULARITY",
+  "filterClosingSoon": true
 }
 
 # Response 202:
 # { "sessionId": "fuzzy-penguin" }
 #
-# Response 400: missing address, empty type array, invalid radiusMiles/rankBy
+# Response 400: missing address, empty type array, invalid radiusMiles/rankBy,
+#   missing or non-boolean filterClosingSoon
 # Response 403: reCAPTCHA score too low
 
 ###
@@ -96,6 +101,7 @@ GET https://{{choosee-api-host}}/v1/sessions/fuzzy-penguin HTTP/1.1
 #   "exclude": ["breakfast_restaurant"],
 #   "radius": 3750,
 #   "rankBy": "POPULARITY",
+#   "filterClosingSoon": true,
 #   "totalRounds": 2
 # }
 #
