@@ -17,7 +17,7 @@ GET https://{{choosee-api-host}}/v1/sessions/config HTTP/1.1
 #     { "value": "DISTANCE", "label": "Closest", "description": "Nearest to you", "maxChoices": 20 },
 #     { "value": "ALL", "label": "Both", "description": "Popular & nearby", "maxChoices": 40 }
 #   ],
-#   "radius": { "minMiles": 1, "maxMiles": 30 }
+#   "radius": { "defaultMiles": 15, "minMiles": 1, "maxMiles": 30 }
 # }
 
 ###
