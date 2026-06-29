@@ -1,5 +1,11 @@
 import { geocodeResult, place1, place2, placeResponse, reverseGeocodeResult } from '../__mocks__'
-import { fetchAddressFromGeocode, fetchGeocodeResults, fetchPlaceResults, HIDDEN_TYPES } from '@services/google-maps'
+import {
+  fetchAddressFromGeocode,
+  fetchGeocodeResults,
+  fetchPlaceResults,
+  HIDDEN_TYPES,
+  interleaveArrays,
+} from '@services/google-maps'
 import { LatLng } from '@types'
 
 const mockGeocode = jest.fn()
@@ -27,10 +33,46 @@ const fieldMask = {
   otherArgs: {
     headers: {
       'X-Goog-FieldMask':
-        'places.id,places.types,places.nationalPhoneNumber,places.internationalPhoneNumber,places.formattedAddress,places.rating,places.websiteUri,places.currentOpeningHours,places.priceLevel,places.userRatingCount,places.priceLevel,places.displayName,places.editorialSummary,places.photos,places.generativeSummary,places.priceRange,places.utcOffsetMinutes',
+        'places.id,places.types,places.nationalPhoneNumber,places.internationalPhoneNumber,places.formattedAddress,places.rating,places.websiteUri,places.currentOpeningHours,places.priceLevel,places.userRatingCount,places.priceLevel,places.displayName,places.editorialSummary,places.photos,places.generativeSummary,places.priceRange,places.utcOffsetMinutes,places.location',
     },
   },
 }
+
+describe('interleaveArrays', () => {
+  it('should alternate elements starting with the first array when random returns < 0.5', () => {
+    expect(interleaveArrays(['P1', 'P2', 'P3'], ['D1', 'D2', 'D3'], () => 0)).toEqual([
+      'P1',
+      'D1',
+      'P2',
+      'D2',
+      'P3',
+      'D3',
+    ])
+  })
+
+  it('should alternate elements starting with the second array when random returns >= 0.5', () => {
+    expect(interleaveArrays(['P1', 'P2', 'P3'], ['D1', 'D2', 'D3'], () => 1)).toEqual([
+      'D1',
+      'P1',
+      'D2',
+      'P2',
+      'D3',
+      'P3',
+    ])
+  })
+
+  it('should handle unequal lengths', () => {
+    expect(interleaveArrays(['P1', 'P2'], ['D1'], () => 0)).toEqual(['P1', 'D1', 'P2'])
+  })
+
+  it('should handle an empty first array', () => {
+    expect(interleaveArrays([], ['D1', 'D2'], () => 0)).toEqual(['D1', 'D2'])
+  })
+
+  it('should handle an empty second array', () => {
+    expect(interleaveArrays(['P1', 'P2'], [], () => 0)).toEqual(['P1', 'P2'])
+  })
+})
 
 describe('google-maps', () => {
   beforeAll(() => {
@@ -155,20 +197,28 @@ describe('google-maps', () => {
         expect(result).toHaveLength(2)
       })
 
-      it('should include unique places from both queries', async () => {
-        const popularityResponse = {
-          places: [placeResponse.places[0]],
-        }
-        const distanceResponse = {
-          places: [placeResponse.places[1]],
-        }
-        mockSearchNearby.mockResolvedValueOnce([popularityResponse]).mockResolvedValueOnce([distanceResponse])
+      it('should interleave results with popularity first when random < 0.5', async () => {
+        mockSearchNearby
+          .mockResolvedValueOnce([{ places: [placeResponse.places[0]] }])
+          .mockResolvedValueOnce([{ places: [placeResponse.places[1]] }])
 
-        const result = await fetchPlaceResults(location, primaryTypes, exclude, 'ALL', radius)
+        const result = await fetchPlaceResults(location, primaryTypes, exclude, 'ALL', radius, () => 0)
 
         expect(result).toHaveLength(2)
         expect(result[0].placeId).toBe(place1.placeId)
         expect(result[1].placeId).toBe(place2.placeId)
+      })
+
+      it('should interleave results with distance first when random >= 0.5', async () => {
+        mockSearchNearby
+          .mockResolvedValueOnce([{ places: [placeResponse.places[0]] }])
+          .mockResolvedValueOnce([{ places: [placeResponse.places[1]] }])
+
+        const result = await fetchPlaceResults(location, primaryTypes, exclude, 'ALL', radius, () => 1)
+
+        expect(result).toHaveLength(2)
+        expect(result[0].placeId).toBe(place2.placeId)
+        expect(result[1].placeId).toBe(place1.placeId)
       })
 
       it('should continue with DISTANCE results when POPULARITY fails', async () => {
@@ -198,16 +248,37 @@ describe('google-maps', () => {
       })
     })
 
+    describe('distanceMiles', () => {
+      it('should compute distanceMiles from origin when place has location', async () => {
+        const placeWithLocation = {
+          places: [{ ...placeResponse.places[0], location: { latitude: 39.1, longitude: -92.0 } }],
+        }
+        mockSearchNearby.mockResolvedValueOnce([placeWithLocation])
+
+        const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
+
+        expect(result[0].distanceMiles).toBeCloseTo(6.91, 2)
+      })
+
+      it('should omit distanceMiles when place has no location', async () => {
+        const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
+
+        expect(result[0]).not.toHaveProperty('distanceMiles')
+      })
+
+      it('should omit distanceMiles when place location has null coordinates', async () => {
+        const placeWithPartialLocation = {
+          places: [{ ...placeResponse.places[0], location: { latitude: 39.1, longitude: null } }],
+        }
+        mockSearchNearby.mockResolvedValueOnce([placeWithPartialLocation])
+
+        const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
+
+        expect(result[0]).not.toHaveProperty('distanceMiles')
+      })
+    })
+
     describe('photo resilience', () => {
-      beforeEach(() => {
-        mockGetPhotoMedia.mockReset()
-      })
-
-      afterEach(() => {
-        // Restore default for other tests
-        mockGetPhotoMedia.mockResolvedValue([{ photoUri: 'a-picture-stream' }])
-      })
-
       it('should skip failed photos and return successful ones', async () => {
         mockSearchNearby.mockResolvedValueOnce([placeResponse])
         mockGetPhotoMedia
@@ -216,11 +287,6 @@ describe('google-maps', () => {
           .mockResolvedValueOnce([{ photoUri: 'photo-3' }])
           .mockResolvedValueOnce([{ photoUri: 'photo-4' }])
           .mockResolvedValueOnce([{ photoUri: 'photo-5' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-6' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-7' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-8' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-9' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-10' }])
 
         const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
 

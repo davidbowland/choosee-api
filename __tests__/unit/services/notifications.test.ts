@@ -23,7 +23,7 @@ const baseUser: UserRecord = {
   subscribedRounds: [0, 1],
   votes: [[]],
   textsSent: 0,
-  expiration: Math.floor(Date.now() / 1000) + 86400,
+  expiration: 9999999999,
 }
 
 describe('notifications', () => {

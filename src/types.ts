@@ -40,6 +40,7 @@ export interface PlaceDetails {
   priceLevel?: PriceLevel | null
   rating?: number | null
   ratingsTotal?: number | null
+  distanceMiles?: number
   placeTypes?: string[] | null
   website?: string | null
 }
@@ -103,8 +104,11 @@ export interface ChoiceDetail {
   priceLevel?: PriceLevel
   rating?: number
   ratingsTotal?: number
+  distanceMiles?: number
   photos: string[]
   openHours?: string[]
+  openNow?: boolean
+  isClosingSoon: boolean
   placeTypes: string[]
   website?: string
 }
@@ -126,6 +130,7 @@ export interface SortOption {
   value: RankByType
   label: string
   description: string
+  maxChoices: number
 }
 
 export interface RadiusConstraints {

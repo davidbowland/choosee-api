@@ -10,15 +10,14 @@ GET https://{{choosee-api-host}}/v1/sessions/config HTTP/1.1
 #   "placeTypes": [
 #     { "value": "restaurant", "display": "Any restaurant", "defaultType": true, "canBeExcluded": false, "mustBeSingleType": true },
 #     { "value": "acai_shop", "display": "Acai shop" },
-#     { "value": "fast_food_restaurant", "display": "Fast food", "defaultExclude": true },
-#     ...
+#     { "value": "fast_food_restaurant", "display": "Fast food", "defaultExclude": true },#     ...
 #   ],
 #   "sortOptions": [
-#     { "value": "POPULARITY", "label": "Most popular", "description": "Highest rated first" },
-#     { "value": "DISTANCE", "label": "Closest", "description": "Nearest to you" },
-#     { "value": "ALL", "label": "Both", "description": "Popular & nearby" }
+#     { "value": "POPULARITY", "label": "Most popular", "description": "Highest rated first", "maxChoices": 20 },
+#     { "value": "DISTANCE", "label": "Closest", "description": "Nearest to you", "maxChoices": 20 },
+#     { "value": "ALL", "label": "Both", "description": "Popular & nearby", "maxChoices": 40 }
 #   ],
-#   "radius": { "minMiles": 1, "maxMiles": 30 }
+#   "radius": { "defaultMiles": 15, "minMiles": 1, "maxMiles": 30 }
 # }
 
 ###
@@ -52,6 +51,10 @@ x-recaptcha-token: {{choosee-api-recaptcha-token}}
 # filterClosingSoon: required boolean. When true, filters out restaurants that are
 #   closed or closing within the next hour. Best-effort: places without structured
 #   hours data are kept if Google reports them as open.
+# maxChoices: optional integer. Caps the number of restaurants in the bracket.
+#   For rankBy "ALL", results are interleaved (alternating popularity/distance)
+#   before the cap is applied, so the extra slot goes to a randomly chosen list.
+#   Omit to include all results returned by Google (up to 20).
 # latitude/longitude: optional — both or neither. If omitted, address is geocoded.
 #
 # Authenticated variant: POST /v1/sessions/authed (Cognito JWT)
@@ -66,7 +69,8 @@ x-recaptcha-token: {{choosee-api-recaptcha-token}}
   "exclude": ["breakfast_restaurant"],
   "radiusMiles": 2.33,
   "rankBy": "POPULARITY",
-  "filterClosingSoon": true
+  "filterClosingSoon": true,
+  "maxChoices": 8
 }
 
 # Response 202:
@@ -131,13 +135,21 @@ GET https://{{choosee-api-host}}/v1/sessions/fuzzy-penguin/choices HTTP/1.1
 #     "priceLevel": "PRICE_LEVEL_MODERATE",
 #     "rating": 4.5,
 #     "ratingsTotal": 200,
+#     "distanceMiles": 1.2,
 #     "photos": ["https://maps.googleapis.com/..."],
 #     "openHours": ["Monday: 11:00 AM – 10:00 PM"],
+#     "openNow": true,
+#     "isClosingSoon": false,
 #     "types": ["Pizza", "Italian"],
 #     "website": "https://joespizza.example.com"
 #   },
 #   "choice-b": { ... }
 # }
+#
+# openNow: present when Google provided a value; true = open now, false = closed.
+# isClosingSoon: true when the restaurant is currently open but closes within the next hour.
+#   Computed at session-creation time. Always false when filterClosingSoon=true (those
+#   places were already removed). Always false when openNow is false or unknown.
 #
 # Response 404: session not found
 

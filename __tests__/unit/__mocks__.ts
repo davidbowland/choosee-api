@@ -167,6 +167,8 @@ export const choiceDetail1: ChoiceDetail = {
   ratingsTotal: 1200,
   photos: ['a-picture-stream'],
   openHours: ['Monday: 11:00 AM – 9:00 PM'],
+  openNow: true,
+  isClosingSoon: false,
   placeTypes: ['Pub', 'Bar', 'American'],
   website: 'http://www.flatbranch.com/',
 }
@@ -181,6 +183,8 @@ export const choiceDetail2: ChoiceDetail = {
   rating: 4.6,
   ratingsTotal: 800,
   photos: [],
+  openNow: true,
+  isClosingSoon: false,
   placeTypes: ['Pizza', 'Bar'],
   website: 'https://www.shakespeares.com/',
 }
@@ -192,6 +196,7 @@ export const choiceDetail3: ChoiceDetail = {
   rating: 4.3,
   ratingsTotal: 600,
   photos: ['photo-stream-3'],
+  isClosingSoon: false,
   placeTypes: [],
 }
 
@@ -202,6 +207,7 @@ export const choiceDetail4: ChoiceDetail = {
   rating: 4.4,
   ratingsTotal: 500,
   photos: ['photo-stream-4'],
+  isClosingSoon: false,
   placeTypes: [],
 }
 

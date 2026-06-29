@@ -73,7 +73,7 @@ const searchNearbyFieldMask = {
   otherArgs: {
     headers: {
       'X-Goog-FieldMask':
-        'places.id,places.types,places.nationalPhoneNumber,places.internationalPhoneNumber,places.formattedAddress,places.rating,places.websiteUri,places.currentOpeningHours,places.priceLevel,places.userRatingCount,places.priceLevel,places.displayName,places.editorialSummary,places.photos,places.generativeSummary,places.priceRange,places.utcOffsetMinutes',
+        'places.id,places.types,places.nationalPhoneNumber,places.internationalPhoneNumber,places.formattedAddress,places.rating,places.websiteUri,places.currentOpeningHours,places.priceLevel,places.userRatingCount,places.priceLevel,places.displayName,places.editorialSummary,places.photos,places.generativeSummary,places.priceRange,places.utcOffsetMinutes,places.location',
     },
   },
 }
@@ -96,6 +96,7 @@ interface GooglePlace {
     weekdayDescriptions?: string[] | null
     periods?: { open?: GoogleOpeningHoursPeriodPoint; close?: GoogleOpeningHoursPeriodPoint }[] | null
   } | null
+  location?: { latitude?: number | null; longitude?: number | null } | null
   photos?: { name?: string | null }[] | null
   priceLevel?: string | null
   rating?: number | null
@@ -110,29 +111,51 @@ interface RawPlaceWithRefs extends Omit<PlaceDetails, 'photos'> {
   photoRefs: string[]
 }
 
+const EARTH_RADIUS_MILES = 3_958.8
+
+const haversineDistanceMiles = (from: LatLng, to: LatLng): number => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180
+  const dLat = toRad(to.latitude - from.latitude)
+  const dLng = toRad(to.longitude - from.longitude)
+  const a =
+    Math.sin(dLat / 2) ** 2 + Math.cos(toRad(from.latitude)) * Math.cos(toRad(to.latitude)) * Math.sin(dLng / 2) ** 2
+  return EARTH_RADIUS_MILES * 2 * Math.asin(Math.sqrt(a))
+}
+
 /** Map a GooglePlace to RawPlaceWithRefs (no photo fetching). */
-const toRawPlace = (place: GooglePlace): RawPlaceWithRefs => ({
-  formattedAddress: place.formattedAddress,
-  formattedPhoneNumber: place.nationalPhoneNumber,
-  internationalPhoneNumber: place.internationalPhoneNumber,
-  name: place.displayName?.text,
-  openHours: place.currentOpeningHours?.weekdayDescriptions,
-  openNow: place.currentOpeningHours?.openNow,
-  openingHoursPeriods: place.currentOpeningHours?.periods
-    ?.filter((p) => p.open != null)
-    .map((p) => ({
-      open: { day: p.open!.day, hour: p.open!.hour, minute: p.open!.minute, date: p.open!.date },
-      close: p.close ? { day: p.close.day, hour: p.close.hour, minute: p.close.minute, date: p.close.date } : undefined,
-    })),
-  utcOffsetMinutes: place.utcOffsetMinutes,
-  photoRefs: place.photos?.slice(0, googleImageCount).map((p) => `${p.name}/media`) ?? [],
-  placeId: place.id as string,
-  priceLevel: place.priceLevel as PriceLevel,
-  rating: place.rating,
-  ratingsTotal: place.userRatingCount,
-  placeTypes: place.types,
-  website: place.websiteUri,
-})
+const toRawPlace = (place: GooglePlace, origin: LatLng): RawPlaceWithRefs => {
+  const raw: RawPlaceWithRefs = {
+    formattedAddress: place.formattedAddress,
+    formattedPhoneNumber: place.nationalPhoneNumber,
+    internationalPhoneNumber: place.internationalPhoneNumber,
+    name: place.displayName?.text,
+    openHours: place.currentOpeningHours?.weekdayDescriptions,
+    openNow: place.currentOpeningHours?.openNow,
+    openingHoursPeriods: place.currentOpeningHours?.periods
+      ?.filter((p) => p.open != null)
+      .map((p) => ({
+        open: { day: p.open!.day, hour: p.open!.hour, minute: p.open!.minute, date: p.open!.date },
+        close: p.close
+          ? { day: p.close.day, hour: p.close.hour, minute: p.close.minute, date: p.close.date }
+          : undefined,
+      })),
+    utcOffsetMinutes: place.utcOffsetMinutes,
+    photoRefs: place.photos?.slice(0, googleImageCount).map((p) => `${p.name}/media`) ?? [],
+    placeId: place.id as string,
+    priceLevel: place.priceLevel as PriceLevel,
+    rating: place.rating,
+    ratingsTotal: place.userRatingCount,
+    placeTypes: place.types,
+    website: place.websiteUri,
+  }
+  if (place.location?.latitude != null && place.location?.longitude != null) {
+    raw.distanceMiles = haversineDistanceMiles(origin, {
+      latitude: place.location.latitude,
+      longitude: place.location.longitude,
+    })
+  }
+  return raw
+}
 
 const PHOTO_CONCURRENCY = 5
 
@@ -167,6 +190,17 @@ const searchNearby = async (
   return (response[0].places ?? []) as GooglePlace[]
 }
 
+export const interleaveArrays = <T>(a: T[], b: T[], random = Math.random): T[] => {
+  const [first, second] = random() < 0.5 ? [a, b] : [b, a]
+  const result: T[] = []
+  const maxLen = Math.max(first.length, second.length)
+  for (let i = 0; i < maxLen; i++) {
+    if (i < first.length) result.push(first[i])
+    if (i < second.length) result.push(second[i])
+  }
+  return result
+}
+
 /** Deduplicate places by placeId, keeping the first occurrence. */
 const dedupeByPlaceId = <T extends { placeId: string }>(places: T[]): T[] => {
   const seen = new Set<string>()
@@ -193,6 +227,7 @@ export const fetchPlaceResults = async (
   exclude: string[],
   rankBy: RankByType,
   radius: number,
+  random = Math.random,
 ): Promise<PlaceDetails[]> => {
   let rawPlaces: GooglePlace[]
 
@@ -215,12 +250,12 @@ export const fetchPlaceResults = async (
       throw results[0].reason
     }
 
-    rawPlaces = [...popularityPlaces, ...distancePlaces]
+    rawPlaces = interleaveArrays(popularityPlaces, distancePlaces, random)
   } else {
     rawPlaces = await searchNearby(location, types, exclude, rankBy, radius)
   }
 
-  const mapped = rawPlaces.map(toRawPlace)
+  const mapped = rawPlaces.map((p) => toRawPlace(p, location))
   const unique = dedupeByPlaceId(mapped)
 
   // Collect all photo refs with back-references, then resolve in batches
@@ -244,21 +279,25 @@ export const fetchPlaceResults = async (
     })
   }
 
-  return unique.map((place, i) => ({
-    formattedAddress: place.formattedAddress,
-    formattedPhoneNumber: place.formattedPhoneNumber,
-    internationalPhoneNumber: place.internationalPhoneNumber,
-    name: place.name,
-    openHours: place.openHours,
-    openNow: place.openNow,
-    openingHoursPeriods: place.openingHoursPeriods,
-    utcOffsetMinutes: place.utcOffsetMinutes,
-    photos: photosByPlace[i],
-    placeId: place.placeId,
-    priceLevel: place.priceLevel,
-    rating: place.rating,
-    ratingsTotal: place.ratingsTotal,
-    placeTypes: place.placeTypes,
-    website: place.website,
-  }))
+  return unique.map((place, i) => {
+    const result: PlaceDetails = {
+      formattedAddress: place.formattedAddress,
+      formattedPhoneNumber: place.formattedPhoneNumber,
+      internationalPhoneNumber: place.internationalPhoneNumber,
+      name: place.name,
+      openHours: place.openHours,
+      openNow: place.openNow,
+      openingHoursPeriods: place.openingHoursPeriods,
+      utcOffsetMinutes: place.utcOffsetMinutes,
+      photos: photosByPlace[i],
+      placeId: place.placeId,
+      priceLevel: place.priceLevel,
+      rating: place.rating,
+      ratingsTotal: place.ratingsTotal,
+      placeTypes: place.placeTypes,
+      website: place.website,
+    }
+    if (place.distanceMiles !== undefined) result.distanceMiles = place.distanceMiles
+    return result
+  })
 }

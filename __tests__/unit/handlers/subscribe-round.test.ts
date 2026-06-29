@@ -17,7 +17,7 @@ jest.mock('@utils/logging', () => ({
 
 describe('subscribe-round', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
-  const futureExpiration = Math.floor(Date.now() / 1000) + 86400
+  const futureExpiration = 9999999999
   const futureSession = { ...session, expiration: futureExpiration }
   const userWithPhone: UserRecord = { ...userRecord, expiration: futureExpiration, phone: '+15551234567' }
 
@@ -66,7 +66,7 @@ describe('subscribe-round', () => {
     })
 
     it('should return NOT_FOUND when session is expired', async () => {
-      const expiredSession = { ...session, expiration: Math.floor(Date.now() / 1000) - 3600 }
+      const expiredSession = { ...session, expiration: 1 }
       jest.mocked(dynamodb).getSession.mockResolvedValueOnce({ session: expiredSession, users: [], version: 0 })
       const result = await handler(event)
       expect(result).toEqual(expect.objectContaining(status.NOT_FOUND))

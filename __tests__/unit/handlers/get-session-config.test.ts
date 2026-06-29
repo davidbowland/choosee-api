@@ -27,9 +27,9 @@ describe('get-session-config', () => {
         ]),
       )
       expect(config.sortOptions).toEqual([
-        { description: 'Highest rated first', label: 'Most popular', value: 'POPULARITY' },
-        { description: 'Nearest to you', label: 'Closest', value: 'DISTANCE' },
-        { description: 'Popular & nearby', label: 'Both', value: 'ALL' },
+        { description: 'Highest rated first', label: 'Most popular', maxChoices: 20, value: 'POPULARITY' },
+        { description: 'Nearest to you', label: 'Closest', maxChoices: 20, value: 'DISTANCE' },
+        { description: 'Popular & nearby', label: 'Both', maxChoices: 40, value: 'ALL' },
       ])
       expect(config.radius).toEqual({ defaultMiles: 15, minMiles: 1, maxMiles: 30 })
     })
