@@ -218,6 +218,11 @@ export default [
     value: 'steak_house',
   },
   {
+    defaultExclude: true,
+    display: 'Street food',
+    value: 'street_food_gathering',
+  },
+  {
     display: 'Sushi',
     value: 'sushi_restaurant',
   },

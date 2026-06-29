@@ -94,6 +94,34 @@ describe('create-session', () => {
       )
     })
 
+    it('should propagate distanceMiles to the choices record when present', async () => {
+      jest.mocked(googleMaps).fetchPlaceResults.mockResolvedValueOnce([{ ...place1, distanceMiles: 1.5 }, place2])
+
+      await handler(createEvent)
+
+      expect(dynamodb.putChoices).toHaveBeenCalledWith(
+        sessionId,
+        expect.objectContaining({
+          choices: expect.objectContaining({
+            'choice-1': expect.objectContaining({ distanceMiles: 1.5 }),
+          }),
+        }),
+      )
+    })
+
+    it('should omit distanceMiles from choices record when not present', async () => {
+      await handler(createEvent)
+
+      expect(dynamodb.putChoices).toHaveBeenCalledWith(
+        sessionId,
+        expect.objectContaining({
+          choices: expect.objectContaining({
+            'choice-1': expect.not.objectContaining({ distanceMiles: expect.anything() }),
+          }),
+        }),
+      )
+    })
+
     it('should set errorMessage when fewer than 2 restaurants found', async () => {
       jest.mocked(googleMaps).fetchPlaceResults.mockResolvedValueOnce([place1])
 

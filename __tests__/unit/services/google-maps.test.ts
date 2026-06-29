@@ -27,7 +27,7 @@ const fieldMask = {
   otherArgs: {
     headers: {
       'X-Goog-FieldMask':
-        'places.id,places.types,places.nationalPhoneNumber,places.internationalPhoneNumber,places.formattedAddress,places.rating,places.websiteUri,places.currentOpeningHours,places.priceLevel,places.userRatingCount,places.priceLevel,places.displayName,places.editorialSummary,places.photos,places.generativeSummary,places.priceRange,places.utcOffsetMinutes',
+        'places.id,places.types,places.nationalPhoneNumber,places.internationalPhoneNumber,places.formattedAddress,places.rating,places.websiteUri,places.currentOpeningHours,places.priceLevel,places.userRatingCount,places.priceLevel,places.displayName,places.editorialSummary,places.photos,places.generativeSummary,places.priceRange,places.utcOffsetMinutes,places.location',
     },
   },
 }
@@ -195,6 +195,36 @@ describe('google-maps', () => {
         await expect(fetchPlaceResults(location, primaryTypes, exclude, 'ALL', radius)).rejects.toThrow(
           'POPULARITY failed',
         )
+      })
+    })
+
+    describe('distanceMiles', () => {
+      it('should compute distanceMiles from origin when place has location', async () => {
+        const placeWithLocation = {
+          places: [{ ...placeResponse.places[0], location: { latitude: 39.1, longitude: -92.0 } }],
+        }
+        mockSearchNearby.mockResolvedValueOnce([placeWithLocation])
+
+        const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
+
+        expect(result[0].distanceMiles).toBeCloseTo(6.91, 2)
+      })
+
+      it('should omit distanceMiles when place has no location', async () => {
+        const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
+
+        expect(result[0]).not.toHaveProperty('distanceMiles')
+      })
+
+      it('should omit distanceMiles when place location has null coordinates', async () => {
+        const placeWithPartialLocation = {
+          places: [{ ...placeResponse.places[0], location: { latitude: 39.1, longitude: null } }],
+        }
+        mockSearchNearby.mockResolvedValueOnce([placeWithPartialLocation])
+
+        const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
+
+        expect(result[0]).not.toHaveProperty('distanceMiles')
       })
     })
 

@@ -11,6 +11,7 @@ GET https://{{choosee-api-host}}/v1/sessions/config HTTP/1.1
 #     { "value": "restaurant", "display": "Any restaurant", "defaultType": true, "canBeExcluded": false, "mustBeSingleType": true },
 #     { "value": "acai_shop", "display": "Acai shop" },
 #     { "value": "fast_food_restaurant", "display": "Fast food", "defaultExclude": true },
+#     { "value": "street_food_gathering", "display": "Street food", "defaultExclude": true },
 #     ...
 #   ],
 #   "sortOptions": [
@@ -131,6 +132,7 @@ GET https://{{choosee-api-host}}/v1/sessions/fuzzy-penguin/choices HTTP/1.1
 #     "priceLevel": "PRICE_LEVEL_MODERATE",
 #     "rating": 4.5,
 #     "ratingsTotal": 200,
+#     "distanceMiles": 1.2,
 #     "photos": ["https://maps.googleapis.com/..."],
 #     "openHours": ["Monday: 11:00 AM – 10:00 PM"],
 #     "types": ["Pizza", "Italian"],

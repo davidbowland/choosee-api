@@ -37,6 +37,7 @@ const toChoiceDetail = (place: PlaceDetails, choiceId: string): ChoiceDetail => 
   if (place.priceLevel != null) detail.priceLevel = place.priceLevel
   if (place.rating != null) detail.rating = place.rating
   if (place.ratingsTotal != null) detail.ratingsTotal = place.ratingsTotal
+  if (place.distanceMiles != null) detail.distanceMiles = place.distanceMiles
   if (place.openHours != null) detail.openHours = place.openHours
   if (place.website != null) detail.website = place.website
   return detail
