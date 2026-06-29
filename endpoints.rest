@@ -10,9 +10,7 @@ GET https://{{choosee-api-host}}/v1/sessions/config HTTP/1.1
 #   "placeTypes": [
 #     { "value": "restaurant", "display": "Any restaurant", "defaultType": true, "canBeExcluded": false, "mustBeSingleType": true },
 #     { "value": "acai_shop", "display": "Acai shop" },
-#     { "value": "fast_food_restaurant", "display": "Fast food", "defaultExclude": true },
-#     { "value": "street_food_gathering", "display": "Street food", "defaultExclude": true },
-#     ...
+#     { "value": "fast_food_restaurant", "display": "Fast food", "defaultExclude": true },#     ...
 #   ],
 #   "sortOptions": [
 #     { "value": "POPULARITY", "label": "Most popular", "description": "Highest rated first" },
