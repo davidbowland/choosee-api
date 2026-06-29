@@ -4,7 +4,7 @@ import { getSession, putChoices, putSession } from '../services/dynamodb'
 import { fetchGeocodeResults, fetchPlaceResults } from '../services/google-maps'
 import { ChoiceDetail, ChoicesRecord, LatLng, PlaceDetails, RankByType } from '../types'
 import { log, logError } from '../utils/logging'
-import { filterClosingSoon } from '../utils/open-hours'
+import { filterClosingSoon, isNotClosingSoon } from '../utils/open-hours'
 
 const placeTypeDisplayMap = new Map(
   placeTypes.filter((pt) => pt.value !== 'restaurant').map((pt) => [pt.value, pt.display]),
@@ -23,15 +23,17 @@ interface CreateSessionEvent {
   longitude?: number
 }
 
-const toChoiceDetail = (place: PlaceDetails, choiceId: string): ChoiceDetail => {
+const toChoiceDetail = (place: PlaceDetails, choiceId: string, nowMs: number): ChoiceDetail => {
   const detail: ChoiceDetail = {
     choiceId,
     name: place.name ?? '',
     photos: place.photos,
+    isClosingSoon: place.openNow === true && !isNotClosingSoon(place, nowMs),
     placeTypes: (place.placeTypes ?? [])
       .map((t) => placeTypeDisplayMap.get(t))
       .filter((d): d is string => d !== undefined),
   }
+  if (place.openNow != null) detail.openNow = place.openNow
   if (place.formattedAddress != null) detail.formattedAddress = place.formattedAddress
   if (place.formattedPhoneNumber != null) detail.formattedPhoneNumber = place.formattedPhoneNumber
   if (place.internationalPhoneNumber != null) detail.internationalPhoneNumber = place.internationalPhoneNumber
@@ -53,7 +55,7 @@ const setErrorMessage = async (sessionId: string, message: string): Promise<void
   }
 }
 
-export const handler = async (event: CreateSessionEvent): Promise<void> => {
+export const handler = async (event: CreateSessionEvent, nowMs: number = Date.now()): Promise<void> => {
   log('Create session invoked', { sessionId: event.sessionId })
   try {
     let location: LatLng
@@ -89,7 +91,7 @@ export const handler = async (event: CreateSessionEvent): Promise<void> => {
 
     if (event.filterClosingSoon) {
       const beforeCount = places.length
-      places = filterClosingSoon(places)
+      places = filterClosingSoon(places, nowMs)
       log('Closing-soon filter applied', { before: beforeCount, after: places.length })
 
       if (places.length < 2) {
@@ -108,7 +110,7 @@ export const handler = async (event: CreateSessionEvent): Promise<void> => {
     const choices: Record<string, ChoiceDetail> = Object.fromEntries(
       places.map((place, index) => {
         const choiceId = `choice-${index + 1}`
-        return [choiceId, toChoiceDetail(place, choiceId)]
+        return [choiceId, toChoiceDetail(place, choiceId, nowMs)]
       }),
     )
 

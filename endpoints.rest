@@ -138,11 +138,18 @@ GET https://{{choosee-api-host}}/v1/sessions/fuzzy-penguin/choices HTTP/1.1
 #     "distanceMiles": 1.2,
 #     "photos": ["https://maps.googleapis.com/..."],
 #     "openHours": ["Monday: 11:00 AM – 10:00 PM"],
+#     "openNow": true,
+#     "isClosingSoon": false,
 #     "types": ["Pizza", "Italian"],
 #     "website": "https://joespizza.example.com"
 #   },
 #   "choice-b": { ... }
 # }
+#
+# openNow: present when Google provided a value; true = open now, false = closed.
+# isClosingSoon: true when the restaurant is currently open but closes within the next hour.
+#   Computed at session-creation time. Always false when filterClosingSoon=true (those
+#   places were already removed). Always false when openNow is false or unknown.
 #
 # Response 404: session not found
 

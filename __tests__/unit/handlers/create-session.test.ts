@@ -122,6 +122,53 @@ describe('create-session', () => {
       )
     })
 
+    it('should set openNow and isClosingSoon: false on choices when place is open and not closing soon', async () => {
+      await handler(createEvent)
+
+      expect(dynamodb.putChoices).toHaveBeenCalledWith(
+        sessionId,
+        expect.objectContaining({
+          choices: expect.objectContaining({
+            'choice-1': expect.objectContaining({ openNow: true, isClosingSoon: false }),
+          }),
+        }),
+      )
+    })
+
+    it('should omit openNow when place.openNow is null', async () => {
+      jest.mocked(googleMaps).fetchPlaceResults.mockResolvedValueOnce([{ ...place1, openNow: null }, place2])
+
+      await handler(createEvent)
+
+      expect(dynamodb.putChoices).toHaveBeenCalledWith(
+        sessionId,
+        expect.objectContaining({
+          choices: expect.objectContaining({
+            'choice-1': expect.not.objectContaining({ openNow: expect.anything() }),
+          }),
+        }),
+      )
+    })
+
+    it('should set isClosingSoon: true when place is open and closing within the hour', async () => {
+      // place1's Sunday period: open 2025-03-02T11:00Z, close 2025-03-02T21:00Z (utcOffsetMinutes=0)
+      const closingSoonPlace = { ...place1, utcOffsetMinutes: 0 }
+      jest.mocked(googleMaps).fetchPlaceResults.mockResolvedValueOnce([closingSoonPlace, place2])
+
+      // 30 minutes before closing (20:30 UTC on 2025-03-02) — within the 1-hour threshold
+      const nowMs = Date.UTC(2025, 2, 2, 20, 30)
+      await handler(createEvent, nowMs)
+
+      expect(dynamodb.putChoices).toHaveBeenCalledWith(
+        sessionId,
+        expect.objectContaining({
+          choices: expect.objectContaining({
+            'choice-1': expect.objectContaining({ isClosingSoon: true }),
+          }),
+        }),
+      )
+    })
+
     it('should limit choices to maxChoices when provided', async () => {
       await handler({ ...createEvent, maxChoices: 1 })
 

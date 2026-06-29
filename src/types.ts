@@ -107,6 +107,8 @@ export interface ChoiceDetail {
   distanceMiles?: number
   photos: string[]
   openHours?: string[]
+  openNow?: boolean
+  isClosingSoon: boolean
   placeTypes: string[]
   website?: string
 }
