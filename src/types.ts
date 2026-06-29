@@ -128,6 +128,7 @@ export interface SortOption {
   value: RankByType
   label: string
   description: string
+  maxChoices?: number
 }
 
 export interface RadiusConstraints {
