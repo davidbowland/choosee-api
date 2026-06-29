@@ -190,6 +190,17 @@ const searchNearby = async (
   return (response[0].places ?? []) as GooglePlace[]
 }
 
+export const interleaveArrays = <T>(a: T[], b: T[], random = Math.random): T[] => {
+  const [first, second] = random() < 0.5 ? [a, b] : [b, a]
+  const result: T[] = []
+  const maxLen = Math.max(first.length, second.length)
+  for (let i = 0; i < maxLen; i++) {
+    if (i < first.length) result.push(first[i])
+    if (i < second.length) result.push(second[i])
+  }
+  return result
+}
+
 /** Deduplicate places by placeId, keeping the first occurrence. */
 const dedupeByPlaceId = <T extends { placeId: string }>(places: T[]): T[] => {
   const seen = new Set<string>()
@@ -216,6 +227,7 @@ export const fetchPlaceResults = async (
   exclude: string[],
   rankBy: RankByType,
   radius: number,
+  random = Math.random,
 ): Promise<PlaceDetails[]> => {
   let rawPlaces: GooglePlace[]
 
@@ -238,7 +250,7 @@ export const fetchPlaceResults = async (
       throw results[0].reason
     }
 
-    rawPlaces = [...popularityPlaces, ...distancePlaces]
+    rawPlaces = interleaveArrays(popularityPlaces, distancePlaces, random)
   } else {
     rawPlaces = await searchNearby(location, types, exclude, rankBy, radius)
   }

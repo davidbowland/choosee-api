@@ -122,6 +122,17 @@ describe('create-session', () => {
       )
     })
 
+    it('should limit choices to maxChoices when provided', async () => {
+      await handler({ ...createEvent, maxChoices: 1 })
+
+      expect(dynamodb.putChoices).toHaveBeenCalledWith(
+        sessionId,
+        expect.objectContaining({
+          choices: { 'choice-1': expect.objectContaining({ name: place1.name }) },
+        }),
+      )
+    })
+
     it('should set errorMessage when fewer than 2 restaurants found', async () => {
       jest.mocked(googleMaps).fetchPlaceResults.mockResolvedValueOnce([place1])
 

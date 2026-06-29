@@ -18,6 +18,7 @@ interface CreateSessionEvent {
   radius: number
   rankBy: RankByType
   filterClosingSoon?: boolean
+  maxChoices?: number
   latitude?: number
   longitude?: number
 }
@@ -98,6 +99,10 @@ export const handler = async (event: CreateSessionEvent): Promise<void> => {
         )
         return
       }
+    }
+
+    if (event.maxChoices != null) {
+      places = places.slice(0, event.maxChoices)
     }
 
     const choices: Record<string, ChoiceDetail> = Object.fromEntries(
