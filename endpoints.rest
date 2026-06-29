@@ -51,6 +51,10 @@ x-recaptcha-token: {{choosee-api-recaptcha-token}}
 # filterClosingSoon: required boolean. When true, filters out restaurants that are
 #   closed or closing within the next hour. Best-effort: places without structured
 #   hours data are kept if Google reports them as open.
+# maxChoices: optional integer. Caps the number of restaurants in the bracket.
+#   For rankBy "ALL", results are interleaved (alternating popularity/distance)
+#   before the cap is applied, so the extra slot goes to a randomly chosen list.
+#   Omit to include all results returned by Google (up to 20).
 # latitude/longitude: optional — both or neither. If omitted, address is geocoded.
 #
 # Authenticated variant: POST /v1/sessions/authed (Cognito JWT)
@@ -65,7 +69,8 @@ x-recaptcha-token: {{choosee-api-recaptcha-token}}
   "exclude": ["breakfast_restaurant"],
   "radiusMiles": 2.33,
   "rankBy": "POPULARITY",
-  "filterClosingSoon": true
+  "filterClosingSoon": true,
+  "maxChoices": 8
 }
 
 # Response 202:
