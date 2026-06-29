@@ -13,7 +13,7 @@ describe('id-generator', () => {
     jest.restoreAllMocks()
   })
 
-  beforeEach(() => {
+  beforeAll(() => {
     mockRandom.mockReturnValue(0.5)
   })
 

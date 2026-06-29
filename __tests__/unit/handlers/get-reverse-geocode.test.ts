@@ -17,7 +17,7 @@ jest.mock('@utils/logging')
 describe('get-reverse-geocode', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
 
-  beforeEach(() => {
+  beforeAll(() => {
     jest.mocked(events).extractRecaptchaToken.mockReturnValue(recaptchaToken)
     jest.mocked(events).parseLatLng.mockReturnValue({ latitude: 38.897957, longitude: -77.03656 })
     jest.mocked(recaptcha).getCaptchaScore.mockResolvedValue(0.9)

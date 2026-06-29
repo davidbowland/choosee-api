@@ -279,15 +279,6 @@ describe('google-maps', () => {
     })
 
     describe('photo resilience', () => {
-      beforeEach(() => {
-        mockGetPhotoMedia.mockReset()
-      })
-
-      afterEach(() => {
-        // Restore default for other tests
-        mockGetPhotoMedia.mockResolvedValue([{ photoUri: 'a-picture-stream' }])
-      })
-
       it('should skip failed photos and return successful ones', async () => {
         mockSearchNearby.mockResolvedValueOnce([placeResponse])
         mockGetPhotoMedia
@@ -296,11 +287,6 @@ describe('google-maps', () => {
           .mockResolvedValueOnce([{ photoUri: 'photo-3' }])
           .mockResolvedValueOnce([{ photoUri: 'photo-4' }])
           .mockResolvedValueOnce([{ photoUri: 'photo-5' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-6' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-7' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-8' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-9' }])
-          .mockResolvedValueOnce([{ photoUri: 'photo-10' }])
 
         const result = await fetchPlaceResults(location, primaryTypes, exclude, rankBy, radius)
 

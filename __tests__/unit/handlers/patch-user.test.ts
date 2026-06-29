@@ -23,7 +23,7 @@ jest.mock('@utils/logging', () => ({
 
 describe('patch-user', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
-  const futureExpiration = Math.floor(Date.now() / 1000) + 86400
+  const futureExpiration = 9999999999
   const futureSession = { ...session, expiration: futureExpiration }
   const futureUser = { ...userRecord, expiration: futureExpiration }
 

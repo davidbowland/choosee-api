@@ -21,7 +21,7 @@ jest.mock('@utils/logging', () => ({
 
 describe('share-session', () => {
   const event = eventJson as unknown as APIGatewayProxyEventV2
-  const futureExpiration = Math.floor(Date.now() / 1000) + 86400
+  const futureExpiration = 9999999999
   const futureSession = { ...session, expiration: futureExpiration }
   const sharingUser: UserRecord = {
     ...userRecord,
@@ -76,7 +76,6 @@ describe('share-session', () => {
 
     it('should backfill googleSub and allow sharing when sharing user has null googleSub', async () => {
       jest.mocked(dynamodb).getUser.mockResolvedValueOnce({ ...sharingUser, googleSub: null })
-      jest.mocked(dynamodb).updateUser.mockClear()
       const result = await handler(event)
       expect(result).toEqual(expect.objectContaining(status.CREATED))
       expect(dynamodb.updateUser).toHaveBeenCalledWith(
@@ -99,8 +98,6 @@ describe('share-session', () => {
     })
 
     it('should call incrementTextsSent before creating user', async () => {
-      jest.mocked(dynamodb).incrementTextsSent.mockClear()
-      jest.mocked(dynamodb).createUser.mockClear()
       await handler(event)
       const incrementOrder = jest.mocked(dynamodb).incrementTextsSent.mock.invocationCallOrder[0]
       const createOrder = jest.mocked(dynamodb).createUser.mock.invocationCallOrder[0]
@@ -108,13 +105,11 @@ describe('share-session', () => {
     })
 
     it('should call incrementTextsSent with sessionId, userId, and limit', async () => {
-      jest.mocked(dynamodb).incrementTextsSent.mockClear()
       await handler(event)
       expect(dynamodb.incrementTextsSent).toHaveBeenCalledWith(sessionId, 'fuzzy-penguin', expect.any(Number))
     })
 
     it('should create user with recipient phone number', async () => {
-      jest.mocked(dynamodb).createUser.mockClear()
       await handler(event)
       expect(dynamodb.createUser).toHaveBeenCalledWith(
         sessionId,
@@ -123,7 +118,6 @@ describe('share-session', () => {
     })
 
     it('should send SMS with session link', async () => {
-      jest.mocked(sms).sendSms.mockClear()
       await handler(event)
       expect(sms.sendSms).toHaveBeenCalledWith(
         '+15551234567',
@@ -165,7 +159,6 @@ describe('share-session', () => {
 
     it('should not create user when rate limit is exceeded', async () => {
       jest.mocked(dynamodb).incrementTextsSent.mockRejectedValueOnce(new RateLimitError('SMS rate limit exceeded'))
-      jest.mocked(dynamodb).createUser.mockClear()
       await handler(event)
       expect(dynamodb.createUser).not.toHaveBeenCalled()
     })
@@ -177,7 +170,7 @@ describe('share-session', () => {
     })
 
     it('should return NOT_FOUND when session is expired', async () => {
-      const expiredSession = { ...session, expiration: Math.floor(Date.now() / 1000) - 3600 }
+      const expiredSession = { ...session, expiration: 1 }
       jest.mocked(dynamodb).getSession.mockResolvedValueOnce({ session: expiredSession, users: [], version: 0 })
       const result = await handler(event)
       expect(result).toEqual(expect.objectContaining(status.NOT_FOUND))
@@ -201,7 +194,6 @@ describe('share-session', () => {
     it('should not increment textsSent when phone number is already in use', async () => {
       const existingUser: UserRecord = { ...userRecord, expiration: futureExpiration, phone: '+15551234567' }
       jest.mocked(dynamodb).getAllUsers.mockResolvedValueOnce([existingUser])
-      jest.mocked(dynamodb).incrementTextsSent.mockClear()
       await handler(event)
       expect(dynamodb.incrementTextsSent).not.toHaveBeenCalled()
     })
