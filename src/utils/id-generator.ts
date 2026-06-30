@@ -1,16 +1,18 @@
+import { randomInt as cryptoRandomInt } from 'crypto'
+
 import { adjectives } from '../assets/adjectives'
 import { nouns } from '../assets/nouns'
 
-export const generateSessionId = (): string => {
-  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)]
-  const noun = nouns[Math.floor(Math.random() * nouns.length)]
+export const generateSessionId = (randomInt = cryptoRandomInt): string => {
+  const adjective = adjectives[randomInt(adjectives.length)]
+  const noun = nouns[randomInt(nouns.length)]
   return `${adjective}-${noun}`
 }
 
-export const generateUserId = (existingUserIds: string[], maxRetries = 5): string => {
+export const generateUserId = (existingUserIds: string[], maxRetries = 5, randomInt = cryptoRandomInt): string => {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    const adjective = adjectives[Math.floor(Math.random() * adjectives.length)]
-    const noun = nouns[Math.floor(Math.random() * nouns.length)]
+    const adjective = adjectives[randomInt(adjectives.length)]
+    const noun = nouns[randomInt(nouns.length)]
     const id = `${adjective}-${noun}`
 
     if (!existingUserIds.includes(id)) {

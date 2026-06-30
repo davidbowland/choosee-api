@@ -68,7 +68,7 @@ const createSessionWithUniqueId = async (
   throw new Error('Failed to create session after maximum retries')
 }
 
-export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+export const handler = async (event: APIGatewayProxyEventV2, nowMs = Date.now()): Promise<APIGatewayProxyResultV2> => {
   log('Received event', { ...event, body: undefined })
   try {
     const recaptchaToken = extractRecaptchaToken(event)
@@ -80,8 +80,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
       throw new ForbiddenError('reCAPTCHA score too low')
     }
 
-    const expiration = Math.floor(Date.now() / 1000) + sessionExpireHours * 3600
-    const timeoutAt = Date.now() + createSessionTimeoutMs
+    const expiration = Math.floor(nowMs / 1000) + sessionExpireHours * 3600
+    const timeoutAt = nowMs + createSessionTimeoutMs
 
     const sessionId = await createSessionWithUniqueId(input, expiration, timeoutAt)
     log('Session created', { sessionId })

@@ -36,17 +36,12 @@ describe('post-session', () => {
   const NOW = 1700000000000
 
   beforeAll(() => {
-    jest.spyOn(Date, 'now').mockReturnValue(NOW)
     jest.mocked(events).extractRecaptchaToken.mockReturnValue(recaptchaToken)
     jest.mocked(events).parseNewSessionBody.mockReturnValue(newSessionInput)
     jest.mocked(recaptcha).getCaptchaScore.mockResolvedValue(0.9)
     jest.mocked(dynamodb).putNewSession.mockResolvedValue(undefined)
     jest.mocked(idGenerator).generateSessionId.mockReturnValue('fuzzy-penguin')
     mockSend.mockResolvedValue(undefined)
-  })
-
-  afterAll(() => {
-    jest.restoreAllMocks()
   })
 
   describe('handler', () => {
@@ -92,13 +87,13 @@ describe('post-session', () => {
     })
 
     it('should set expiration to 24 hours from now in seconds', async () => {
-      await handler(event)
+      await handler(event, NOW)
       const sessionArg = jest.mocked(dynamodb).putNewSession.mock.calls.at(-1)?.[1]
       expect(sessionArg?.expiration).toBe(Math.floor(NOW / 1000) + 24 * 3600)
     })
 
     it('should set timeoutAt to now + configured timeout in ms', async () => {
-      await handler(event)
+      await handler(event, NOW)
       const sessionArg = jest.mocked(dynamodb).putNewSession.mock.calls.at(-1)?.[1]
       expect(sessionArg?.timeoutAt).toBe(NOW + 10000)
     })

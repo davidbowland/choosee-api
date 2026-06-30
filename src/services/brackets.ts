@@ -1,16 +1,19 @@
 import { SessionRecord, UserRecord } from '../types'
 
-const shuffle = <T>(arr: T[]): T[] => {
+const shuffle = <T>(arr: T[], random = Math.random): T[] => {
   const result = [...arr]
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const j = Math.floor(random() * (i + 1))
     ;[result[i], result[j]] = [result[j], result[i]]
   }
   return result
 }
 
-export const generateMatchups = (choiceIds: string[]): { matchups: [string, string][]; bye: string | null } => {
-  const shuffled = shuffle(choiceIds)
+export const generateMatchups = (
+  choiceIds: string[],
+  random = Math.random,
+): { matchups: [string, string][]; bye: string | null } => {
+  const shuffled = shuffle(choiceIds, random)
   let bye: string | null = null
 
   if (shuffled.length % 2 !== 0) {
@@ -25,7 +28,12 @@ export const generateMatchups = (choiceIds: string[]): { matchups: [string, stri
   return { matchups, bye }
 }
 
-export const tallyVotes = (round: number, bracket: [string, string][][], users: UserRecord[]): string[] => {
+export const tallyVotes = (
+  round: number,
+  bracket: [string, string][][],
+  users: UserRecord[],
+  random = Math.random,
+): string[] => {
   const matchups = bracket[round]
   return matchups.map((matchup, matchupIndex) => {
     const counts: Record<string, number> = { [matchup[0]]: 0, [matchup[1]]: 0 }
@@ -45,16 +53,17 @@ export const tallyVotes = (round: number, bracket: [string, string][][], users: 
     if (counts[matchup[0]] > counts[matchup[1]]) return matchup[0]
     if (counts[matchup[1]] > counts[matchup[0]]) return matchup[1]
 
-    return Math.random() < 0.5 ? matchup[0] : matchup[1]
+    return random() < 0.5 ? matchup[0] : matchup[1]
   })
 }
 
 export const advanceRound = (
   session: SessionRecord,
   users: UserRecord[],
+  random = Math.random,
 ): { updatedFields: Partial<SessionRecord>; winner: string | null } => {
   const round = session.currentRound
-  const winners = tallyVotes(round, session.bracket, users)
+  const winners = tallyVotes(round, session.bracket, users, random)
 
   const advancing = [...winners]
   const currentBye = session.byes[round]
@@ -69,7 +78,7 @@ export const advanceRound = (
     }
   }
 
-  const { matchups, bye } = generateMatchups(advancing)
+  const { matchups, bye } = generateMatchups(advancing, random)
   const newRound = round + 1
   const newBracket = [...session.bracket, matchups]
   const newByes = [...session.byes, bye]

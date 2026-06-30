@@ -98,49 +98,33 @@ describe('brackets', () => {
     ]
 
     it('should return the choice with more votes', () => {
-      const mockRandom = jest.spyOn(Math, 'random')
-      mockRandom.mockReturnValue(0.1)
-
       const users = [
         makeUser({ userId: 'u1', votes: [['a', 'c']] }),
         makeUser({ userId: 'u2', votes: [['a', 'd']] }),
         makeUser({ userId: 'u3', votes: [['b', 'c']] }),
       ]
-      const winners = tallyVotes(0, bracket, users)
+      const winners = tallyVotes(0, bracket, users, () => 0.1)
       expect(winners[0]).toBe('a')
       // Second matchup: c=2, d=1 → c wins
       expect(winners[1]).toBe('c')
-
-      mockRandom.mockRestore()
     })
 
     it('should break ties randomly', () => {
       const users = [makeUser({ userId: 'u1', votes: [['a', 'c']] }), makeUser({ userId: 'u2', votes: [['b', 'd']] })]
-      const mockRandom = jest.spyOn(Math, 'random')
-      mockRandom.mockReturnValue(0.1)
-      expect(tallyVotes(0, bracket, users)[0]).toBe('a')
-
-      mockRandom.mockReturnValue(0.9)
-      expect(tallyVotes(0, bracket, users)[0]).toBe('b')
-
-      mockRandom.mockRestore()
+      expect(tallyVotes(0, bracket, users, () => 0.1)[0]).toBe('a')
+      expect(tallyVotes(0, bracket, users, () => 0.9)[0]).toBe('b')
     })
 
     it('should discard invalid votes', () => {
-      const mockRandom = jest.spyOn(Math, 'random')
-      mockRandom.mockReturnValue(0.9)
-
       const users = [
         makeUser({ userId: 'u1', votes: [['a', 'c']] }),
         makeUser({ userId: 'u2', votes: [['INVALID', 'd']] }),
       ]
-      const winners = tallyVotes(0, bracket, users)
+      const winners = tallyVotes(0, bracket, users, () => 0.9)
       // Matchup 0: a=1 (INVALID discarded), b=0 → a wins
       expect(winners[0]).toBe('a')
       // Matchup 1: c=1, d=1 → tied, random > 0.5 picks 'd'
       expect(winners[1]).toBe('d')
-
-      mockRandom.mockRestore()
     })
 
     it('should exclude users who have not voted for the round', () => {
@@ -206,10 +190,6 @@ describe('brackets', () => {
     })
 
     it('should handle tied votes via random tie-break', () => {
-      const mockRandom = jest.spyOn(Math, 'random')
-      // Tie-break in tallyVotes picks first choice (< 0.5), then shuffle in generateMatchups
-      mockRandom.mockReturnValue(0.1)
-
       const session = makeSession({
         currentRound: 0,
         bracket: [
@@ -221,14 +201,13 @@ describe('brackets', () => {
         byes: [null],
       })
       const users = [makeUser({ userId: 'u1', votes: [['a', 'c']] }), makeUser({ userId: 'u2', votes: [['b', 'd']] })]
-      const result = advanceRound(session, users)
+      // Tie-break in tallyVotes picks first choice (< 0.5), then shuffle in generateMatchups
+      const result = advanceRound(session, users, () => 0.1)
       expect(result.winner).toBeNull()
       expect(result.updatedFields.currentRound).toBe(1)
       // Both matchups tied → tie-break picks 'a' and 'c' (random < 0.5)
       const round1Choices = result.updatedFields.bracket![1][0].sort()
       expect(round1Choices).toEqual(['a', 'c'])
-
-      mockRandom.mockRestore()
     })
   })
 
